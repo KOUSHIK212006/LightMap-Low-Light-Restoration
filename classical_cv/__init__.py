@@ -1,1 +1,5 @@
-"""Placeholder package for Karen's classical computer vision module."""
+"""Classical computer vision enhancement module for LightMap."""
+
+from .classical_pipeline import analyze_image, enhance_classical
+
+__all__ = ["analyze_image", "enhance_classical"]
