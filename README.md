@@ -14,6 +14,41 @@ The system combines Classical Computer Vision, Deep Learning, adaptive image fus
 
 ---
 
+## Phase 1 quick start
+
+This repository now includes the Koushik-owned application foundation: a FastAPI backend, a React + Vite dashboard, structured integration placeholders for Karen and Krishank, and a working upload/validation pipeline with fallback handling.
+
+### Backend
+
+```bash
+py -3.11 -m venv .venv
+.venv\Scripts\activate
+pip install -r backend/requirements.txt
+copy backend\.env.example backend\.env
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+copy .env.example .env
+npm run dev -- --host 0.0.0.0
+```
+
+### API overview
+
+- `GET /` - base service information
+- `GET /health` - backend health status
+- `POST /api/v1/analyze` - analyze uploaded image
+- `POST /api/v1/enhance` - enhancement request with file upload and profile
+- `POST /api/v1/compare` - comparison summary with original and enhanced output
+
+> Phase 1 intentionally uses a documented demo fallback when optional restoration modules are unavailable. It never labels that output as a trained model result.
+
+---
+
 ## Problem Statement
 
 **PS1 – Robust Low-Light Image Restoration and Enhancement**

@@ -223,3 +223,11 @@ logs/
 # Keep important project placeholders
 # ------------------------------------------
 !.gitkeep
+
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Generated Vite config output
+frontend/vite.config.js
+frontend/vite.config.d.ts
