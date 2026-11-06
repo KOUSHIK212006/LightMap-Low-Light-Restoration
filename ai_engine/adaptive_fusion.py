@@ -1,20 +1,49 @@
 import numpy as np
+import cv2
 
 def adaptive_fusion(original, classical_output, deep_output, analysis=None):
     """
-    Placeholder for Adaptive Hybrid Fusion (IAAF).
-    Returns: Dictionary with 'image', 'fusion_map', 'branch_disagreement_map'
+    Adaptive Hybrid Fusion (IAAF).
+    Combines classical and deep learning outputs using a spatially varying weight map.
     """
-    # TODO: Implement actual fusion logic
-    # Create dummy maps with the same height and width as the input
-    height, width = original.shape[:2]
-    dummy_map = np.zeros((height, width), dtype=np.uint8)
-    
-    # For now, just return the deep_output (or original if deep is missing)
-    final_image = deep_output if deep_output is not None else original
-    
+    # Ensure images are float32 for math operations
+    original_f = original.astype(np.float32) / 255.0
+    classical_f = classical_output.astype(np.float32) / 255.0
+    deep_f = deep_output.astype(np.float32) / 255.0
+
+    # 1. Create an Illumination Map (Brightness of the original image)
+    # We use the standard luminosity formula: 0.299*R + 0.587*G + 0.114*B
+    illumination = np.dot(original_f[..., :3], [0.299, 0.587, 0.114])
+
+    # 2. Generate the Weight Map (W)
+    # Rule: In dark regions (illumination < 0.2), we want more Deep Learning (W -> 1.0).
+    # In bright regions (illumination > 0.5), we want more Classical (W -> 0.0).
+    # We use np.clip to bound the weights between 0.2 and 0.9 so we always have a mix.
+    W = np.clip((0.5 - illumination) * 2.0, 0.2, 0.9)
+
+    # 3. Smooth the Weight Map to avoid patchy boundaries
+    # We apply a Gaussian blur to the weight map
+    W_smooth = cv2.GaussianBlur(W, (31, 31), 0)
+
+    # Expand dimensions of W to match the 3 color channels (H, W, 1) -> (H, W, 3)
+    W_3c = np.expand_dims(W_smooth, axis=-1)
+
+    # 4. Apply the Fusion Formula: I_H = W * I_D + (1 - W) * I_C
+    fused_f = (W_3c * deep_f) + ((1.0 - W_3c) * classical_f)
+
+    # Convert back to uint8 RGB
+    fused_img = np.clip(fused_f * 255.0, 0, 255).astype(np.uint8)
+
+    # 5. Generate the Disagreement Map
+    # Absolute difference between classical and deep outputs, averaged across channels
+    disagreement = np.mean(np.abs(classical_f - deep_f), axis=-1)
+    disagreement_uint8 = np.clip(disagreement * 255.0, 0, 255).astype(np.uint8)
+
+    # Convert weight map to uint8 for visualization (0 to 255)
+    W_vis = np.clip(W_smooth * 255.0, 0, 255).astype(np.uint8)
+
     return {
-        "image": final_image,
-        "fusion_map": dummy_map,
-        "branch_disagreement_map": dummy_map
+        "image": fused_img,
+        "fusion_map": W_vis,
+        "branch_disagreement_map": disagreement_uint8
     }
