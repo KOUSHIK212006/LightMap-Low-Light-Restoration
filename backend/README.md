@@ -36,3 +36,10 @@ The API will be available at http://localhost:8000.
 - Only PNG, JPG, and JPEG uploads are accepted.
 - Uploads are limited to 10 MB and 4096x4096 pixels by default.
 - The app intentionally exposes data URLs for output images instead of leaking filesystem paths.
+
+## Render Deployment Notes
+
+- Deploy the service from the `backend/` directory because `backend/requirements.txt` is the authoritative dependency file.
+- Use the startup command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- Set `LIGHTMAP_CORS_ORIGINS` and `LIGHTMAP_FRONTEND_ORIGIN` to the deployed frontend origin(s) instead of using a wildcard.
+- Deep-learning restoration depends on a Retinexformer checkpoint in `pretrained_weights/`. If that file is absent, classical restoration continues to work and the API returns a clear warning rather than faking a deep restoration result.
