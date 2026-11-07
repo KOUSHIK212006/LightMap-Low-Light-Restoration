@@ -1,192 +1,217 @@
-import { useEffect, useState } from 'react';
-import ComparisonView from '../components/ComparisonView';
-import ErrorMessage from '../components/ErrorMessage';
-import Header from '../components/Header';
-import ImagePreview from '../components/ImagePreview';
-import ImageUploader from '../components/ImageUploader';
-import LoadingState from '../components/LoadingState';
-import ModeSelector from '../components/ModeSelector';
-import ProfileSelector from '../components/ProfileSelector';
-import { enhanceImage, healthCheck } from '../services/api';
-import type { ImageProfile, RestorationMode } from '../types/image';
+import { useState, useEffect, useRef } from 'react';
+import { Navbar } from '../components/Layout/Navbar';
+import { HeroStrip } from '../components/Layout/HeroStrip';
+import { Footer } from '../components/Layout/Footer';
+import { WorkspaceSection } from '../components/Workspace/WorkspaceSection';
+import { CompareViewer } from '../components/Viewer/CompareViewer';
+import { RegionInspector } from '../components/Viewer/RegionInspector';
+import { ExplainabilityMaps } from '../components/Viewer/ExplainabilityMaps';
+import { PipelineSection } from '../components/Pipeline/PipelineSection';
+import { AnalysisSection } from '../components/Analysis/AnalysisSection';
+import { MethodologySection } from '../components/Methodology/MethodologySection';
+
+import { enhanceImage } from '../services/api';
+import type { EnhancementResponse, ImageProfile, RestorationMode } from '../types/image';
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
-  const [classicalImage, setClassicalImage] = useState<string | null>(null);
-  const [deepImage, setDeepImage] = useState<string | null>(null);
-  const [fusionMap, setFusionMap] = useState<string | null>(null);
-  const [disagreementMap, setDisagreementMap] = useState<string | null>(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [profile, setProfile] = useState<ImageProfile>('natural');
-  const [mode, setMode] = useState<RestorationMode>('hybrid');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | undefined>();
-  const [qualityReport, setQualityReport] = useState<Record<string, unknown> | undefined>();
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [timing, setTiming] = useState<Record<string, unknown>>({});
-  const [selectedMethod, setSelectedMethod] = useState<string | undefined>();
-  const [processingStatus, setProcessingStatus] = useState<string | undefined>();
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
+  const [selectedMode, setSelectedMode] = useState<RestorationMode>('hybrid');
+  
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [currentStepMessage, setCurrentStepMessage] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [response, setResponse] = useState<EnhancementResponse | null>(null);
 
+  // Region Inspector ROI state
+  const [roi, setRoi] = useState<{ x: number; y: number; width: number; height: number }>({
+    x: 80,
+    y: 80,
+    width: 80,
+    height: 80,
+  });
+
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Sync original image object URL
   useEffect(() => {
-    healthCheck()
-      .then(() => setBackendHealthy(true))
-      .catch(() => setBackendHealthy(false));
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (originalImage) {
-        URL.revokeObjectURL(originalImage);
-      }
-    };
-  }, [originalImage]);
-
-  const handleFileSelected = (file: File) => {
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
-      setError('Unsupported file type. Please upload a PNG, JPG, or JPEG image.');
-      return;
-    }
-
-    if (originalImage) {
-      URL.revokeObjectURL(originalImage);
-    }
-
-    setSelectedFile(file);
-    setError(null);
-    setStatusMessage(`Loaded ${file.name}. Ready to enhance.`);
-    setOriginalImage(URL.createObjectURL(file));
-    setEnhancedImage(null);
-    setClassicalImage(null);
-    setDeepImage(null);
-    setFusionMap(null);
-    setDisagreementMap(null);
-    setWarnings([]);
-    setAnalysis(undefined);
-    setQualityReport(undefined);
-    setSelectedMethod(undefined);
-    setProcessingStatus(undefined);
-  };
-
-  const handleRemoveImage = () => {
-    if (originalImage) {
-      URL.revokeObjectURL(originalImage);
-    }
-    setSelectedFile(null);
-    setOriginalImage(null);
-    setEnhancedImage(null);
-    setClassicalImage(null);
-    setDeepImage(null);
-    setFusionMap(null);
-    setDisagreementMap(null);
-    setError(null);
-    setWarnings([]);
-    setAnalysis(undefined);
-    setQualityReport(undefined);
-    setSelectedMethod(undefined);
-    setProcessingStatus(undefined);
-    setStatusMessage('Image removed. Select an image to continue.');
-  };
-
-  const handleEnhance = async () => {
     if (!selectedFile) {
-      setError('Choose an image before running enhancement.');
+      if (originalImageUrl) URL.revokeObjectURL(originalImageUrl);
+      setOriginalImageUrl(null);
       return;
     }
+    const url = URL.createObjectURL(selectedFile);
+    setOriginalImageUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [selectedFile]);
 
-    setLoading(true);
-    setError(null);
-    setStatusMessage('Running restoration pipeline...');
+  // Handle smooth scroll to section
+  const handleScrollTo = (sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Execution flow
+  const handleRunRestoration = async () => {
+    if (!selectedFile) return;
+
+    setIsProcessing(true);
+    setErrorMessage(null);
+    setCurrentStepMessage('Analyzing illumination condition and noise characteristics...');
+
+    const timer1 = setTimeout(() => {
+      setCurrentStepMessage('Executing Classical Retinex and Bilateral filtering...');
+    }, 400);
+
+    const timer2 = setTimeout(() => {
+      setCurrentStepMessage('Running Retinexformer transformer self-attention...');
+    }, 1100);
+
+    const timer3 = setTimeout(() => {
+      setCurrentStepMessage('Computing IAAF spatial fusion matrix and Quality Guardian check...');
+    }, 1800);
 
     try {
-      const result = await enhanceImage(selectedFile, profile, mode);
-      setEnhancedImage(result.final_image ?? null);
-      setClassicalImage(result.classical_image ?? result.classical_output ?? null);
-      setDeepImage(result.deep_image ?? result.deep_output ?? null);
-      setFusionMap(result.fusion_map ?? null);
-      setDisagreementMap(result.disagreement_map ?? null);
-      setAnalysis((result.analysis ?? {}) as Record<string, unknown>);
-      setQualityReport((result.quality_report ?? {}) as Record<string, unknown>);
-      setWarnings(result.warnings ?? []);
-      setTiming((result.timing ?? result.timings ?? {}) as Record<string, unknown>);
-      setSelectedMethod(result.selected_method ?? 'unknown');
-      setProcessingStatus(result.processing_status ?? 'unknown');
-      setStatusMessage(result.message || 'Enhancement complete.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'A backend error occurred while enhancing the image.');
-    } finally {
-      setLoading(false);
+      // Backend automatically computes classical, deep, and hybrid
+      const res = await enhanceImage(selectedFile, profile, selectedMode);
+      setResponse(res);
+      setIsProcessing(false);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+
+      // Smooth scroll to results
+      setTimeout(() => {
+        if (resultsRef.current) {
+          resultsRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } catch (err: unknown) {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      setIsProcessing(false);
+      const msg = err instanceof Error ? err.message : 'An error occurred during restoration.';
+      setErrorMessage(msg);
     }
   };
 
+  // Determine active restored image based on selected mode
+  const getActiveRestoredImage = (): string | null => {
+    if (!response) return null;
+    if (selectedMode === 'classical') {
+      return response.classical_image || response.classical_output || response.final_image || null;
+    }
+    if (selectedMode === 'deep') {
+      return response.deep_image || response.deep_output || response.final_image || null;
+    }
+    return response.hybrid_image || response.hybrid_output || response.final_image || null;
+  };
+
+  const activeRestoredImage = getActiveRestoredImage();
+
   return (
-    <div className="app-shell">
-      <div className="dashboard">
-        <Header backendHealthy={backendHealthy} />
+    <div className="app-container">
+      {/* 1. Top Navigation Bar */}
+      <Navbar onScrollTo={handleScrollTo} />
 
-        <div className="content-grid">
-          <div className="panel">
-            <div className="section-header-row">
-              <h2>Upload & Configure</h2>
-              <span className="mini-badge">PNG • JPG • JPEG</span>
+      {/* 2. Hero Strip */}
+      <HeroStrip onUploadClick={() => handleScrollTo('workspace')} />
+
+      {/* 3. Workspace Section with Method Selector */}
+      <WorkspaceSection
+        selectedFile={selectedFile}
+        onFileSelect={(file) => {
+          setSelectedFile(file);
+          setResponse(null);
+          setErrorMessage(null);
+        }}
+        profile={profile}
+        onProfileSelect={setProfile}
+        selectedMode={selectedMode}
+        onModeSelect={setSelectedMode}
+        onRunRestoration={handleRunRestoration}
+        isProcessing={isProcessing}
+        currentStepMessage={currentStepMessage}
+        errorMessage={errorMessage}
+      />
+
+      {/* 5. Results Section (Appears after restoration) */}
+      {response && originalImageUrl && activeRestoredImage && (
+        <div ref={resultsRef} id="results" style={{ padding: '16px 0 32px 0' }}>
+          <div className="content-wrapper">
+            <div className="section-header">
+              <h2 className="section-title">
+                Restoration Diagnostics &amp; Comparison
+              </h2>
+              <p className="section-description">
+                Interactive comparison viewer, ROI pixel magnifier, and explainability heatmaps for mode: <strong>{selectedMode.toUpperCase()}</strong>.
+              </p>
             </div>
-            <ImageUploader onFileSelected={handleFileSelected} onRemove={handleRemoveImage} selectedFileName={selectedFile?.name} />
 
-            <div style={{ marginTop: 18 }}>
-              <ProfileSelector selectedProfile={profile} onChange={setProfile} />
-            </div>
+            {/* A. Before / After Comparison Viewer */}
+            <CompareViewer
+              originalImage={originalImageUrl}
+              restoredImage={activeRestoredImage}
+              selectedMode={selectedMode}
+              response={response}
+              onRoiSelect={setRoi}
+              roi={roi}
+            />
 
-            <ModeSelector selectedMode={mode} onChange={setMode} />
+            {/* B. Region Inspector (ROI Pixel Magnifier) */}
+            <RegionInspector
+              originalImage={originalImageUrl}
+              restoredImage={activeRestoredImage}
+              roi={roi}
+              onChangeRoi={setRoi}
+            />
 
-            <div className="action-row">
-              <button type="button" className="primary-button" onClick={handleEnhance} disabled={!selectedFile || loading || backendHealthy === false}>
-                {loading ? 'Restoring...' : `Enhance image (${mode})`}
-              </button>
-              {enhancedImage && (
-                <a className="secondary-button" href={enhancedImage} download={`lightmap-${mode}-${profile}.png`}>
-                  Download result
-                </a>
-              )}
-            </div>
-
-            {backendHealthy === false && <ErrorMessage message="The backend is unavailable. Start the FastAPI service before uploading an image." />}
-            {error && <ErrorMessage message={error} />}
-            {loading && <LoadingState />}
-            {statusMessage && !loading && <div className="status-banner">{statusMessage}</div>}
-          </div>
-
-          <div className="panel">
-            <div className="section-header-row">
-              <h2>Preview</h2>
-              <span className="mini-badge">Live</span>
-            </div>
-            <div className="preview-stack">
-              <ImagePreview imageSrc={originalImage ?? undefined} label="Original input image" />
-              {enhancedImage && <ImagePreview imageSrc={enhancedImage} label={`Enhanced (${selectedMethod || mode})`} />}
-            </div>
+            {/* C. Explainability Maps */}
+            <ExplainabilityMaps
+              originalImage={originalImageUrl}
+              fusionMap={response.fusion_map}
+              disagreementMap={response.disagreement_map}
+              changeMap={response.change_map}
+            />
           </div>
         </div>
+      )}
 
-        <div className="panel results-panel">
-          <ComparisonView
-            originalImage={originalImage ?? undefined}
-            enhancedImage={enhancedImage ?? undefined}
-            classicalImage={classicalImage ?? undefined}
-            deepImage={deepImage ?? undefined}
-            fusionMap={fusionMap ?? undefined}
-            disagreementMap={disagreementMap ?? undefined}
-            analysis={analysis}
-            qualityReport={qualityReport}
-            warnings={warnings}
-            timing={timing}
-            selectedMethod={selectedMethod}
-            processingStatus={processingStatus}
-          />
-        </div>
-      </div>
+      {/* 6. Pipeline Section */}
+      {response && originalImageUrl && (
+        <PipelineSection
+          response={response}
+          originalImage={originalImageUrl}
+          selectedMode={selectedMode}
+          onSelectStageImage={(_stageImg) => {
+            // stage preview
+          }}
+        />
+      )}
+
+      {/* 7. Analysis Section */}
+      {response && (
+        <AnalysisSection
+          response={response}
+          onSelectGridCell={(bbox) => {
+            setRoi({ x: bbox[0], y: bbox[1], width: bbox[2], height: bbox[3] });
+            const insp = document.getElementById('results');
+            if (insp) insp.scrollIntoView({ behavior: 'smooth' });
+          }}
+        />
+      )}
+
+      {/* 8. Methodology Section */}
+      <MethodologySection />
+
+      {/* 9. Minimal 1-line Footer */}
+      <Footer />
     </div>
   );
 }

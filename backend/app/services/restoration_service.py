@@ -4,6 +4,7 @@ import importlib
 import time
 from typing import Any
 
+import cv2
 import numpy as np
 from PIL import Image, ImageEnhance
 
@@ -125,14 +126,28 @@ class RestorationService:
 
     def _call_classical_branch(self, image, profile, analysis):
         if self.classical_enhancer is None:
-            return None, "Classical enhancement module is not available."
+            return None, [], "Classical enhancement module is not available."
 
         try:
-            result = self.classical_enhancer(image, analysis=analysis, profile=profile)
+            try:
+                result = self.classical_enhancer(image, analysis=analysis, profile=profile, return_stages=True)
+            except TypeError:
+                result = self.classical_enhancer(image, analysis=analysis, profile=profile)
             output = self._extract_image_result(result)
-            return output, None
+            stages = []
+            if isinstance(result, dict) and "stages" in result:
+                for st in result["stages"]:
+                    img_data = encode_image_to_data_url(st["image"])
+                    stages.append({
+                        "name": st["name"],
+                        "description": st.get("description", ""),
+                        "image": img_data,
+                        "params": st.get("params", {}),
+                        "metrics": st.get("metrics", {}),
+                    })
+            return output, stages, None
         except Exception as exc:  # pragma: no cover - defensive handling
-            return None, f"Classical enhancement failed: {exc}"
+            return None, [], f"Classical enhancement failed: {exc}"
 
     def _call_deep_branch(self, image, profile):
         if self.deep_enhancer is None:
@@ -250,6 +265,96 @@ class RestorationService:
             return None
         return array
 
+    def _compute_change_map(self, original: np.ndarray, restored: np.ndarray) -> np.ndarray:
+        diff = np.abs(restored.astype(np.float32) - original.astype(np.float32))
+        diff_luma = 0.299 * diff[:, :, 0] + 0.587 * diff[:, :, 1] + 0.114 * diff[:, :, 2]
+        max_val = float(np.max(diff_luma))
+        if max_val > 0:
+            norm = (diff_luma / max_val * 255.0).astype(np.uint8)
+        else:
+            norm = diff_luma.astype(np.uint8)
+        heatmap = cv2.applyColorMap(norm, cv2.COLORMAP_VIRIDIS)
+        return cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+
+    def _compute_change_stats(self, original: np.ndarray, restored: np.ndarray) -> dict[str, Any]:
+        orig_luma = 0.299 * original[:, :, 0] + 0.587 * original[:, :, 1] + 0.114 * original[:, :, 2]
+        rest_luma = 0.299 * restored[:, :, 0] + 0.587 * restored[:, :, 1] + 0.114 * restored[:, :, 2]
+        delta = rest_luma - orig_luma
+        total_pixels = max(1.0, float(delta.size))
+        brightened = float(np.sum(delta > 3.0)) / total_pixels * 100.0
+        darkened = float(np.sum(delta < -3.0)) / total_pixels * 100.0
+        unchanged = max(0.0, 100.0 - brightened - darkened)
+        return {
+            "pct_brightened": round(brightened, 1),
+            "pct_unchanged": round(unchanged, 1),
+            "pct_darkened": round(darkened, 1),
+            "mean_delta": round(float(np.mean(np.abs(delta))), 2),
+            "max_delta": round(float(np.max(np.abs(delta))), 2),
+        }
+
+    def _compute_histograms(self, original: np.ndarray, restored: np.ndarray) -> dict[str, Any]:
+        def get_hist(arr):
+            r = np.histogram(arr[:, :, 0], bins=256, range=(0, 256))[0].tolist()
+            g = np.histogram(arr[:, :, 1], bins=256, range=(0, 256))[0].tolist()
+            b = np.histogram(arr[:, :, 2], bins=256, range=(0, 256))[0].tolist()
+            luma = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+            l = np.histogram(luma, bins=256, range=(0, 256))[0].tolist()
+            return {"r": r, "g": g, "b": b, "luma": l}
+        return {
+            "original": get_hist(original),
+            "restored": get_hist(restored),
+        }
+
+    def _compute_grid_stats(self, original: np.ndarray, restored: np.ndarray, grid_size: int = 4) -> list[dict[str, Any]]:
+        h, w, _ = original.shape
+        cell_h = max(1, h // grid_size)
+        cell_w = max(1, w // grid_size)
+        cells = []
+        for r in range(grid_size):
+            for c in range(grid_size):
+                y1 = r * cell_h
+                y2 = (r + 1) * cell_h if r < grid_size - 1 else h
+                x1 = c * cell_w
+                x2 = (c + 1) * cell_w if c < grid_size - 1 else w
+                orig_patch = original[y1:y2, x1:x2]
+                rest_patch = restored[y1:y2, x1:x2]
+                o_lum = 0.299 * orig_patch[:, :, 0] + 0.587 * orig_patch[:, :, 1] + 0.114 * orig_patch[:, :, 2]
+                r_lum = 0.299 * rest_patch[:, :, 0] + 0.587 * rest_patch[:, :, 1] + 0.114 * rest_patch[:, :, 2]
+                b_before = float(np.mean(o_lum))
+                b_after = float(np.mean(r_lum))
+                c_before = float(np.std(o_lum))
+                c_after = float(np.std(r_lum))
+                cells.append({
+                    "row": r,
+                    "col": c,
+                    "bbox": [x1, y1, x2 - x1, y2 - y1],
+                    "brightness_before": round(b_before, 1),
+                    "brightness_after": round(b_after, 1),
+                    "brightness_gain": round(b_after - b_before, 1),
+                    "contrast_before": round(c_before, 1),
+                    "contrast_after": round(c_after, 1),
+                    "noise_before": round(float(cv2.Laplacian(o_lum.astype(np.float32), cv2.CV_32F).var()), 1),
+                    "noise_after": round(float(cv2.Laplacian(r_lum.astype(np.float32), cv2.CV_32F).var()), 1),
+                })
+        return cells
+
+    def _compute_method_metrics(self, original: np.ndarray, outputs: dict[str, np.ndarray | None]) -> dict[str, Any]:
+        metrics = {}
+        for name, arr in outputs.items():
+            if arr is None:
+                continue
+            lum = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+            clip = float(np.mean((arr >= 250) | (arr <= 5))) * 100.0
+            edge = float(cv2.Laplacian(lum.astype(np.float32), cv2.CV_32F).std())
+            metrics[name] = {
+                "mean_brightness": round(float(np.mean(lum)), 1),
+                "contrast": round(float(np.std(lum)), 1),
+                "noise": round(float(cv2.Laplacian(lum.astype(np.float32), cv2.CV_32F).var()), 1),
+                "clipping": round(clip, 2),
+                "edge": round(edge, 1),
+            }
+        return metrics
+
     def enhance(self, image: np.ndarray, profile: str = "natural", mode: str = "hybrid") -> dict[str, Any]:
         start_time = time.time()
         warnings: list[str] = []
@@ -260,12 +365,16 @@ class RestorationService:
 
         analysis = self.analyze(normalized_image, profile=profile)
 
-        classical_output, classical_warning = self._call_classical_branch(normalized_image, profile, analysis)
+        t_c0 = time.time()
+        classical_output, classical_stages, classical_warning = self._call_classical_branch(normalized_image, profile, analysis)
+        classical_ms = round((time.time() - t_c0) * 1000, 2)
         if classical_warning:
             warnings.append(classical_warning)
         classical_output = self._validate_output(classical_output)
 
+        t_d0 = time.time()
         deep_output, deep_warning = self._call_deep_branch(normalized_image, profile)
+        deep_ms = round((time.time() - t_d0) * 1000, 2)
         if deep_warning:
             warnings.append(deep_warning)
         deep_output = self._validate_output(deep_output)
@@ -274,10 +383,13 @@ class RestorationService:
         fusion_map = None
         disagreement_map = None
         hybrid_warning = None
+        fusion_ms = 0.0
         if classical_output is not None and deep_output is not None:
+            t_f0 = time.time()
             hybrid_output, fusion_map, disagreement_map, hybrid_warning = self._call_fusion_branch(
                 normalized_image, classical_output, deep_output, analysis
             )
+            fusion_ms = round((time.time() - t_f0) * 1000, 2)
             if hybrid_warning:
                 warnings.append(hybrid_warning)
             hybrid_output = self._validate_output(hybrid_output)
@@ -319,15 +431,46 @@ class RestorationService:
             warnings.append("Neither restoration branch produced a valid output; using the documented demo fallback.")
 
         # Bounded Correction Mechanism
+        t_q0 = time.time()
         if final_output is not None:
             final_output, quality_report = self._apply_bounded_correction(normalized_image, final_output, analysis)
         else:
             quality_report = self._call_quality_check(normalized_image, final_output, analysis)
+        quality_ms = round((time.time() - t_q0) * 1000, 2)
 
         if quality_report.get("warnings"):
             warnings.extend(quality_report["warnings"])
 
         elapsed_ms = round((time.time() - start_time) * 1000, 2)
+
+        # Explainability & Diagnostic payloads
+        change_map_b64 = None
+        change_stats = None
+        histograms = None
+        grid_stats = None
+        method_metrics = None
+        if final_output is not None:
+            try:
+                change_map_rgb = self._compute_change_map(normalized_image, final_output)
+                change_map_b64 = encode_image_to_data_url(change_map_rgb)
+                change_stats = self._compute_change_stats(normalized_image, final_output)
+                histograms = self._compute_histograms(normalized_image, final_output)
+                grid_stats = self._compute_grid_stats(normalized_image, final_output)
+                method_metrics = self._compute_method_metrics(
+                    normalized_image,
+                    {"classical": classical_output, "deep": deep_output, "hybrid": hybrid_output}
+                )
+            except Exception:
+                pass
+
+        timing_breakdown = {
+            "total_ms": elapsed_ms,
+            "classical_ms": classical_ms,
+            "deep_ms": deep_ms,
+            "fusion_ms": fusion_ms,
+            "quality_ms": quality_ms,
+            "processing_ms": elapsed_ms,
+        }
 
         response = {
             "status": "success",
@@ -343,9 +486,15 @@ class RestorationService:
             "hybrid_output": encode_image_to_data_url(hybrid_output) if hybrid_output is not None else None,
             "fusion_map": encode_image_to_data_url(fusion_map) if fusion_map is not None else None,
             "disagreement_map": encode_image_to_data_url(disagreement_map) if disagreement_map is not None else None,
+            "change_map": change_map_b64,
+            "change_stats": change_stats,
+            "histograms": histograms,
+            "grid_stats": grid_stats,
+            "method_metrics": method_metrics,
+            "classical_stages": classical_stages,
             "quality_report": _sanitize_analysis_payload(quality_report),
-            "timings": {"processing_ms": elapsed_ms},
-            "timing": {"processing_ms": elapsed_ms},
+            "timings": timing_breakdown,
+            "timing": timing_breakdown,
             "warnings": warnings,
             "selected_method": selected_method,
             "processing_status": processing_status,

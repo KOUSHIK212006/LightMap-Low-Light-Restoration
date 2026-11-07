@@ -65,3 +65,4 @@ This document records the official sources, academic citations, provenance, and 
   }
   ```
 - **License / Terms**: Adobe-MIT FiveK License for research and education. Complete archive excluded from git tracking.
+

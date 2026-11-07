@@ -37,6 +37,12 @@ class EnhancementResponse(BaseModel):
     hybrid_image: str | None = None
     fusion_map: str | None = None
     disagreement_map: str | None = None
+    change_map: str | None = None
+    change_stats: dict[str, Any] | None = None
+    histograms: dict[str, Any] | None = None
+    grid_stats: list[dict[str, Any]] | None = None
+    method_metrics: dict[str, Any] | None = None
+    classical_stages: list[dict[str, Any]] | None = None
     quality_report: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
     timings: dict[str, Any] | None = None

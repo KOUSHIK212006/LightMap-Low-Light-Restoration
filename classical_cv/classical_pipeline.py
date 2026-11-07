@@ -203,7 +203,7 @@ def analyze_image(image):
     }
 
 
-def enhance_classical(image, analysis=None, profile="natural"):
+def enhance_classical(image, analysis=None, profile="natural", return_stages=False):
     """Apply classical low-light enhancement using profile-aware adaptive operations.
 
     The pipeline is intentionally modular and data-driven. It adapts the intensity of
@@ -221,6 +221,25 @@ def enhance_classical(image, analysis=None, profile="natural"):
     reference_shape = rgb.shape
     current = rgb.copy()
     current = _validate_output_image(current, reference_shape)
+
+    stages = []
+
+    def _calc_stage_metrics(img_arr: np.ndarray) -> dict[str, float]:
+        lum = _luminance(img_arr).astype(np.float32)
+        return {
+            "mean_brightness": round(float(np.mean(lum)), 2),
+            "contrast_score": round(float(np.std(lum)), 2),
+            "noise_score": round(float(cv2.Laplacian(lum, cv2.CV_32F).var()), 2),
+        }
+
+    if return_stages:
+        stages.append({
+            "name": "Input",
+            "description": "Original raw low-light image capture",
+            "image": current.copy(),
+            "params": {"source": "raw_capture"},
+            "metrics": _calc_stage_metrics(current),
+        })
 
     mean_brightness = float(analysis.get("mean_brightness", np.mean(_luminance(current))))
     contrast_score = float(analysis.get("contrast_score", np.std(_luminance(current))))
@@ -249,17 +268,44 @@ def enhance_classical(image, analysis=None, profile="natural"):
         current = _apply_gamma_correction(current, max(1.0, gamma_value * 0.9))
         gamma_applied = False
 
+    if return_stages:
+        stages.append({
+            "name": "Gamma Correction",
+            "description": "Non-linear tone curve expansion for shadows",
+            "image": current.copy(),
+            "params": {"gamma": round(float(gamma_value), 2), "applied": gamma_applied},
+            "metrics": _calc_stage_metrics(current),
+        })
+
     if contrast_score < 55.0 or normalized_profile == "maximum_visibility":
         current = _apply_clahe(current, clip_limit=profile_config["clahe_clip"], tile_grid=profile_config["tile_grid"])
         clahe_applied = True
     else:
         clahe_applied = False
 
+    if return_stages:
+        stages.append({
+            "name": "CLAHE",
+            "description": "Contrast-limited adaptive histogram equalization",
+            "image": current.copy(),
+            "params": {"clip_limit": profile_config["clahe_clip"], "tile_grid": list(profile_config["tile_grid"]), "applied": clahe_applied},
+            "metrics": _calc_stage_metrics(current),
+        })
+
     if (mean_brightness < 120 or underexposed_ratio > 0.18 or normalized_profile == "maximum_visibility") and (edge_strength > 10.0 or not analysis.get("conditions", {}).get("is_low_contrast", False)):
         current = _apply_multiscale_retinex(current)
         retinex_applied = True
     else:
         retinex_applied = False
+
+    if return_stages:
+        stages.append({
+            "name": "Multiscale Retinex",
+            "description": "Illumination-reflectance decomposition across spatial scales",
+            "image": current.copy(),
+            "params": {"scales": [15, 80, 200], "applied": retinex_applied},
+            "metrics": _calc_stage_metrics(current),
+        })
 
     if noise_score > 10.0 or normalized_profile == "natural":
         denoise_strength = int(profile_config["denoise_strength"])
@@ -270,11 +316,29 @@ def enhance_classical(image, analysis=None, profile="natural"):
     else:
         denoising_applied = False
 
+    if return_stages:
+        stages.append({
+            "name": "Bilateral Denoising",
+            "description": "Edge-preserving spatial smoothing in photometric space",
+            "image": current.copy(),
+            "params": {"strength": int(profile_config["denoise_strength"]), "applied": denoising_applied},
+            "metrics": _calc_stage_metrics(current),
+        })
+
     if clipping_ratio > 0.05 or overexposed_ratio > 0.05 or normalized_profile == "maximum_visibility":
         current = _apply_colour_correction(current, bias_strength=profile_config["color_bias"])
         colour_correction_applied = True
     else:
         colour_correction_applied = False
+
+    if return_stages:
+        stages.append({
+            "name": "Colour Correction",
+            "description": "Gray-world chromatic balancing across RGB channels",
+            "image": current.copy(),
+            "params": {"bias_strength": profile_config["color_bias"], "applied": colour_correction_applied},
+            "metrics": _calc_stage_metrics(current),
+        })
 
     output = _validate_output_image(current, reference_shape)
     summary = {
@@ -296,7 +360,7 @@ def enhance_classical(image, analysis=None, profile="natural"):
         "warning": None,
     }
 
-    return {
+    result_payload = {
         "image": output,
         "analysis": analysis,
         "maps": {
@@ -313,6 +377,11 @@ def enhance_classical(image, analysis=None, profile="natural"):
         },
         "processing_summary": summary,
     }
+
+    if return_stages:
+        result_payload["stages"] = stages
+
+    return result_payload
 
 
 __all__ = ["analyze_image", "enhance_classical"]

@@ -40,3 +40,4 @@ data/
 1. **Zero Data Leakage**: Test split images (`00690.png`–`00694.png`) are strictly reserved for testing and never used for classical parameter selection or model tuning.
 2. **Alignment & Dimensions**: All paired reference sets are verified to possess identical spatial dimensions ($400 \times 600$) and color channels ($3$ channels, RGB format).
 3. **Storage Hygiene**: Full multi-gigabyte raw archives (e.g., 50GB MIT-Adobe FiveK archive) are tracked via `.gitignore` and downloaded on-demand using documented scripts.
+

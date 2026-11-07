@@ -3,10 +3,22 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from app.core.pipeline import PipelineService
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get("/sample")
+async def get_sample_image():
+    sample_path = Path(__file__).resolve().parent.parent.parent.parent / "test_dark.jpg"
+    if not sample_path.exists():
+        sample_path = Path(__file__).resolve().parent.parent.parent / "test_dark.jpg"
+    if not sample_path.exists():
+        raise HTTPException(status_code=404, detail="Sample image not found on server.")
+    return FileResponse(path=str(sample_path), media_type="image/jpeg", filename="test_dark.jpg")
 
 
 @router.post("/analyze")
