@@ -85,13 +85,19 @@ def _apply_gamma_correction(image_rgb: np.ndarray, gamma: float) -> np.ndarray:
     if not np.isfinite(gamma) or gamma <= 0:
         raise ValueError("Gamma must be a finite positive number.")
 
+    # Low-light brightening: exponent < 1.0 smoothly lifts shadows.
+    # If gamma > 1.0 (standard photographic divisor parameter), exponent = 1.0 / gamma.
+    # Clamped to safe range [0.55, 0.95] to prevent crushing shadows or burning out midtones.
+    exponent = 1.0 / gamma if gamma > 1.0 else gamma
+    exponent = float(np.clip(exponent, 0.55, 0.95))
+
     image_float = image_rgb.astype(np.float32) / 255.0
-    corrected = np.power(np.clip(image_float, 1e-4, 1.0), gamma)
+    corrected = np.power(np.clip(image_float, 1e-4, 1.0), exponent)
     corrected = np.clip(corrected * 255.0, 0, 255).astype(np.uint8)
     return np.ascontiguousarray(corrected, dtype=np.uint8)
 
 
-def _apply_clahe(image_rgb: np.ndarray, clip_limit: float = 2.0, tile_grid: tuple[int, int] = (8, 8)) -> np.ndarray:
+def _apply_clahe(image_rgb: np.ndarray, clip_limit: float = 1.5, tile_grid: tuple[int, int] = (8, 8)) -> np.ndarray:
     bgr = _rgb_to_bgr(image_rgb)
     lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
     clahe = cv2.createCLAHE(clipLimit=float(clip_limit), tileGridSize=(int(tile_grid[0]), int(tile_grid[1])))
@@ -101,27 +107,37 @@ def _apply_clahe(image_rgb: np.ndarray, clip_limit: float = 2.0, tile_grid: tupl
 
 
 def _apply_multiscale_retinex(image_rgb: np.ndarray, scales: tuple[int, ...] = (15, 80, 200)) -> np.ndarray:
-    rgb = image_rgb.astype(np.float32) / 255.0
-    rgb = np.clip(rgb, 1e-4, 1.0)
-    retinex = np.zeros_like(rgb)
+    # Apply Multiscale Retinex in LAB Luminance channel to preserve 100% chromatic fidelity
+    # and eliminate color distortion/oversaturation
+    bgr = _rgb_to_bgr(image_rgb)
+    lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
+    l_channel = lab[:, :, 0].astype(np.float32) / 255.0
+    l_channel = np.clip(l_channel, 1e-4, 1.0)
 
+    retinex = np.zeros_like(l_channel)
+    log_l = np.log(l_channel + 1e-3)
     for scale in scales:
-        gaussian = cv2.GaussianBlur(rgb, (0, 0), sigmaX=float(scale), sigmaY=float(scale))
-        log_rgb = np.log(rgb + 1e-3)
+        gaussian = cv2.GaussianBlur(l_channel, (0, 0), sigmaX=float(scale), sigmaY=float(scale))
         log_blur = np.log(gaussian + 1e-3)
-        retinex += (log_rgb - log_blur)
+        retinex += (log_l - log_blur)
 
-    enhanced = np.clip((retinex / max(len(scales), 1)) + 0.25, 0.0, 1.0)
-    enhanced = np.clip(enhanced * 1.2, 0.0, 1.0)
-    return (enhanced * 255.0).astype(np.uint8)
+    retinex_mean = retinex / max(len(scales), 1)
+    # Perceptual soft compression: avoids harsh linear offset/multiply clipping
+    norm_retinex = (retinex_mean - np.min(retinex_mean)) / (np.max(retinex_mean) - np.min(retinex_mean) + 1e-5)
+    # Dynamic range blend: 60% Retinex detail + 40% input luminance preserves smooth light gradients
+    enhanced_l = 0.60 * norm_retinex + 0.40 * l_channel
+    lab[:, :, 0] = np.clip(enhanced_l * 255.0, 0, 255).astype(np.uint8)
+
+    enhanced_bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    return _bgr_to_rgb(enhanced_bgr)
 
 
-def _apply_bilateral_denoise(image_rgb: np.ndarray, strength: int = 12) -> np.ndarray:
-    sigma = max(5, strength)
-    return cv2.bilateralFilter(image_rgb, d=9, sigmaColor=float(sigma), sigmaSpace=float(sigma))
+def _apply_bilateral_denoise(image_rgb: np.ndarray, strength: int = 10) -> np.ndarray:
+    sigma = max(4, min(14, strength))
+    return cv2.bilateralFilter(image_rgb, d=7, sigmaColor=float(sigma), sigmaSpace=float(sigma))
 
 
-def _apply_colour_correction(image_rgb: np.ndarray, bias_strength: float = 0.12) -> np.ndarray:
+def _apply_colour_correction(image_rgb: np.ndarray, bias_strength: float = 0.04) -> np.ndarray:
     image_float = image_rgb.astype(np.float32)
     channel_means = image_float.mean(axis=(0, 1))
     target_mean = float(np.mean(channel_means))
@@ -130,8 +146,10 @@ def _apply_colour_correction(image_rgb: np.ndarray, bias_strength: float = 0.12)
     for channel_index in range(3):
         channel_mean = float(channel_means[channel_index])
         if channel_mean > 0:
-            gain = (target_mean / channel_mean) * (1.0 + bias_strength)
-            corrected[:, :, channel_index] = np.clip(corrected[:, :, channel_index] * gain, 0, 255)
+            raw_gain = target_mean / channel_mean
+            # Soft gray-world: damp gain towards 1.0 to prevent oversaturation
+            damped_gain = float(np.clip(1.0 + (raw_gain - 1.0) * 0.45, 0.85, 1.20))
+            corrected[:, :, channel_index] = np.clip(corrected[:, :, channel_index] * damped_gain, 0, 255)
 
     return np.clip(corrected, 0, 255).astype(np.uint8)
 
@@ -250,16 +268,16 @@ def enhance_classical(image, analysis=None, profile="natural", return_stages=Fal
     clipping_ratio = float(analysis.get("clipping_ratio", 0.0))
 
     profile_config = {
-        "natural": {"gamma": 1.10, "clahe_clip": 2.0, "tile_grid": (8, 8), "denoise_strength": 11, "retinex": False, "color_bias": 0.06},
-        "maximum_visibility": {"gamma": 1.35, "clahe_clip": 2.5, "tile_grid": (8, 8), "denoise_strength": 15, "retinex": True, "color_bias": 0.10},
-        "detail_preservation": {"gamma": 1.18, "clahe_clip": 1.8, "tile_grid": (10, 10), "denoise_strength": 7, "retinex": True, "color_bias": 0.04},
+        "natural": {"gamma": 1.25, "clahe_clip": 1.2, "tile_grid": (8, 8), "denoise_strength": 9, "retinex": False, "color_bias": 0.02},
+        "maximum_visibility": {"gamma": 1.45, "clahe_clip": 1.8, "tile_grid": (8, 8), "denoise_strength": 12, "retinex": True, "color_bias": 0.04},
+        "detail_preservation": {"gamma": 1.20, "clahe_clip": 1.4, "tile_grid": (10, 10), "denoise_strength": 7, "retinex": True, "color_bias": 0.02},
     }[normalized_profile]
 
     gamma_value = float(profile_config["gamma"])
     if mean_brightness < 70:
-        gamma_value = gamma_value + (70.0 - mean_brightness) / 150.0
+        gamma_value = gamma_value + (70.0 - mean_brightness) / 250.0
     elif mean_brightness > 180:
-        gamma_value = max(1.0, gamma_value - (mean_brightness - 180.0) / 250.0)
+        gamma_value = max(1.05, gamma_value - (mean_brightness - 180.0) / 300.0)
 
     if mean_brightness < 100 or underexposed_ratio > 0.15:
         current = _apply_gamma_correction(current, gamma_value)
