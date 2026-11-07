@@ -1,26 +1,26 @@
 image_id,split,method,psnr,ssim,clipping_pct,latency_ms,notes
 00690,test,Raw Input (Baseline),8.09,0.1599,0.07,0.0,Original unprocessed low-light capture
-00690,test,E1_Classical_CV,12.38,0.1868,1.11,731.2,CLAHE + Gamma + Retinex + Bilateral
-00690,test,E2_Retinexformer,28.95,0.8597,0.15,2517.8,Pretrained LOL-v2 Real Transformer
-00690,test,E3_Legacy_Fusion_v1,25.55,0.7638,0.16,3262.1,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
-00690,test,E4_LightMap_Hybrid_v2,28.54,0.8573,0.16,3259.8,Deep-first fusion with highlight recovery and guided edge stabilization
+00690,test,E1_Classical_CV,19.54,0.7389,0.09,506.1,CLAHE + Gamma + Retinex + Bilateral
+00690,test,E2_Retinexformer,28.95,0.8597,0.15,2406.4,Pretrained LOL-v2 Real Transformer
+00690,test,E3_Legacy_Fusion_v1,29.65,0.8676,0.12,2925.2,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
+00690,test,E4_LightMap_Hybrid_v2,28.93,0.8604,0.15,2922.8,Deep-first fusion with highlight recovery and guided edge stabilization
 00691,test,Raw Input (Baseline),8.09,0.1561,0.08,0.0,Original unprocessed low-light capture
-00691,test,E1_Classical_CV,12.33,0.1733,1.11,634.5,CLAHE + Gamma + Retinex + Bilateral
-00691,test,E2_Retinexformer,27.50,0.8285,0.15,2320.2,Pretrained LOL-v2 Real Transformer
-00691,test,E3_Legacy_Fusion_v1,24.66,0.7308,0.16,2967.8,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
-00691,test,E4_LightMap_Hybrid_v2,27.14,0.8255,0.15,2966.2,Deep-first fusion with highlight recovery and guided edge stabilization
+00691,test,E1_Classical_CV,19.34,0.6924,0.09,415.7,CLAHE + Gamma + Retinex + Bilateral
+00691,test,E2_Retinexformer,27.50,0.8285,0.15,2193.0,Pretrained LOL-v2 Real Transformer
+00691,test,E3_Legacy_Fusion_v1,27.97,0.8326,0.12,2621.4,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
+00691,test,E4_LightMap_Hybrid_v2,27.47,0.8291,0.15,2619.2,Deep-first fusion with highlight recovery and guided edge stabilization
 00692,test,Raw Input (Baseline),7.77,0.1061,0.00,0.0,Original unprocessed low-light capture
-00692,test,E1_Classical_CV,12.46,0.2608,3.33,605.4,CLAHE + Gamma + Retinex + Bilateral
-00692,test,E2_Retinexformer,27.00,0.8806,0.00,2316.9,Pretrained LOL-v2 Real Transformer
-00692,test,E3_Legacy_Fusion_v1,24.86,0.8168,0.00,2936.1,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
-00692,test,E4_LightMap_Hybrid_v2,26.65,0.8794,0.00,2933.0,Deep-first fusion with highlight recovery and guided edge stabilization
+00692,test,E1_Classical_CV,21.12,0.8008,0.00,410.6,CLAHE + Gamma + Retinex + Bilateral
+00692,test,E2_Retinexformer,27.00,0.8806,0.00,2225.8,Pretrained LOL-v2 Real Transformer
+00692,test,E3_Legacy_Fusion_v1,27.34,0.8865,0.00,2650.0,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
+00692,test,E4_LightMap_Hybrid_v2,26.92,0.8808,0.00,2650.4,Deep-first fusion with highlight recovery and guided edge stabilization
 00693,test,Raw Input (Baseline),7.79,0.1101,0.00,0.0,Original unprocessed low-light capture
-00693,test,E1_Classical_CV,12.59,0.2716,3.15,623.2,CLAHE + Gamma + Retinex + Bilateral
-00693,test,E2_Retinexformer,28.31,0.8924,0.01,2332.8,Pretrained LOL-v2 Real Transformer
-00693,test,E3_Legacy_Fusion_v1,27.02,0.8370,0.01,2968.7,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
-00693,test,E4_LightMap_Hybrid_v2,28.44,0.8925,0.01,2967.3,Deep-first fusion with highlight recovery and guided edge stabilization
+00693,test,E1_Classical_CV,20.88,0.8034,0.00,419.3,CLAHE + Gamma + Retinex + Bilateral
+00693,test,E2_Retinexformer,28.31,0.8924,0.01,2297.5,Pretrained LOL-v2 Real Transformer
+00693,test,E3_Legacy_Fusion_v1,28.70,0.8976,0.00,2732.1,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
+00693,test,E4_LightMap_Hybrid_v2,28.44,0.8927,0.00,2730.6,Deep-first fusion with highlight recovery and guided edge stabilization
 00694,test,Raw Input (Baseline),7.23,0.1163,0.00,0.0,Original unprocessed low-light capture
-00694,test,E1_Classical_CV,11.61,0.2208,4.05,625.3,CLAHE + Gamma + Retinex + Bilateral
-00694,test,E2_Retinexformer,25.44,0.8779,0.00,2383.4,Pretrained LOL-v2 Real Transformer
-00694,test,E3_Legacy_Fusion_v1,22.98,0.7808,0.00,3021.9,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
-00694,test,E4_LightMap_Hybrid_v2,25.00,0.8743,0.00,3019.7,Deep-first fusion with highlight recovery and guided edge stabilization
+00694,test,E1_Classical_CV,21.03,0.7685,0.00,459.6,CLAHE + Gamma + Retinex + Bilateral
+00694,test,E2_Retinexformer,25.44,0.8779,0.00,2330.5,Pretrained LOL-v2 Real Transformer
+00694,test,E3_Legacy_Fusion_v1,25.71,0.8817,0.00,2802.4,"Legacy rule W = clip((0.5-illum)*2, 0.2, 0.9)"
+00694,test,E4_LightMap_Hybrid_v2,25.30,0.8779,0.00,2800.5,Deep-first fusion with highlight recovery and guided edge stabilization

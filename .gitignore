@@ -186,6 +186,9 @@ frontend/.env.*
 # Operating System Files
 # ------------------------------------------
 .DS_Store
+~$*
+.~lock.*
+
 .AppleDouble
 .LSOverride
 Thumbs.db
