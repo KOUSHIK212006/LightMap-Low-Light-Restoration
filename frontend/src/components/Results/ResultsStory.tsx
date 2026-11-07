@@ -16,6 +16,7 @@ import {
 import { CompareViewer } from '../Viewer/CompareViewer';
 import { RegionInspector } from '../Viewer/RegionInspector';
 import { ExplainabilityMaps } from '../Viewer/ExplainabilityMaps';
+import { ThreeMethodComparisonPanel } from '../Viewer/ThreeMethodComparisonPanel';
 import type { EnhancementResponse, RestorationMode } from '../../types/image';
 import type { RoiRect } from '../../utils/roiCoordinates';
 
@@ -175,6 +176,16 @@ export const ResultsStory: React.FC<ResultsStoryProps> = ({
           response={response}
           onRoiSelect={onChangeRoi}
           roi={roi}
+        />
+
+        {/* 2. Direct Three-Method Comparison Panel */}
+        <ThreeMethodComparisonPanel
+          originalImage={originalImage}
+          classicalImage={response.classical_image || response.classical_output || null}
+          deepImage={response.deep_image || response.deep_output || null}
+          hybridImage={response.hybrid_image || response.hybrid_output || null}
+          methodMetrics={response.method_metrics}
+          timings={response.timings || response.timing}
         />
 
         {/* "What happened to your image?" Section */}
