@@ -47,3 +47,41 @@ def adaptive_fusion(original, classical_output, deep_output, analysis=None):
         "fusion_map": W_vis,
         "branch_disagreement_map": disagreement_uint8
     }
+
+def enhance_with_retry(original, classical_func, deep_func, fusion_func, quality_func, max_retries=2):
+    """
+    A bounded wrapper that runs the pipeline and retries if quality fails.
+    """
+    attempt = 0
+    best_result = None
+    best_quality = None
+    
+    # Simple retry strategy: if it fails, we could adjust fusion weights, 
+    # but since our fusion is fixed right now, we will just return the best we have.
+    while attempt < max_retries:
+        # 1. Run Models
+        classical = classical_func(original)
+        deep = deep_func(original)
+        
+        # 2. Fuse
+        fused = fusion_func(original, classical['image'], deep['image'])
+        
+        # 3. Check Quality
+        quality = quality_func(original, fused['image'])
+        
+        # Keep the best result
+        if best_quality is None or len(quality['warnings']) < len(best_quality['warnings']):
+            best_result = fused
+            best_quality = quality
+            
+        # If it passes, stop retrying!
+        if quality['passed']:
+            break
+            
+        attempt += 1
+        print(f"Quality check failed. Retrying... (Attempt {attempt}/{max_retries})")
+        
+    return {
+        "result": best_result,
+        "quality_report": best_quality
+    }
