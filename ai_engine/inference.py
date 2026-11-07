@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 import cv2
 import time
 import sys
@@ -11,8 +10,15 @@ if RETINEXFORMER_REPO_PATH not in sys.path:
     sys.path.insert(0, RETINEXFORMER_REPO_PATH) # Use insert(0) instead of append
 
 # --- FIXED IMPORT ---
-# Import directly from the cloned repository's basicsr folder
-from basicsr.models.archs.RetinexFormer_arch import RetinexFormer
+# Import directly from the cloned repository's basicsr folder if available
+try:
+    import torch
+    from basicsr.models.archs.RetinexFormer_arch import RetinexFormer
+    TORCH_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    torch = None
+    RetinexFormer = None
+    TORCH_AVAILABLE = False
 
 # Global model variable (loaded once)
 _model = None
@@ -21,6 +27,9 @@ _device = None
 def _load_model():
     """Loads the Retinexformer model and weights once."""
     global _model, _device
+    if not TORCH_AVAILABLE:
+        raise RuntimeError("PyTorch or Retinexformer (basicsr) is not installed.")
+
     if _model is not None:
         return _model
     
