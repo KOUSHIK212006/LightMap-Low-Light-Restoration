@@ -34,29 +34,29 @@ export const ExplainabilityMaps: React.FC<ExplainabilityMapsProps> = ({
     switch (activeMap) {
       case 'fusion':
         return {
-          title: 'Fusion Weight Map (W)',
-          subtitle: 'Spatial blending coefficient matrix computed by Illumination-Adaptive Attention Fusion (IAAF)',
-          explanation: 'W determines the local confidence weighting: Dark values (W → 0) indicate regions where Classical CV dominates to preserve edges and fine textures, while bright values (W → 1) indicate deep learning dominance for smooth shadow recovery.',
-          colorbarLeft: '0.0 (Classical CV Dominates)',
-          colorbarRight: '1.0 (Deep Learning Dominates)',
+          title: 'AI vs Classical Blend Map',
+          subtitle: 'Shows which method is in control of each part of the image',
+          explanation: 'Bright areas rely mostly on AI to brighten heavy shadows. Dark areas rely on Classical filters to keep textures and edges razor-sharp.',
+          colorbarLeft: 'Classical (Sharp Edges)',
+          colorbarRight: 'AI (Smooth Lighting)',
           colorbarGradient: 'linear-gradient(to right, #000000 0%, #7C3AED 50%, #F59E0B 80%, #FFFFFF 100%)',
         };
       case 'disagreement':
         return {
-          title: 'Branch Disagreement Map (|I_Deep - I_Classical|)',
-          subtitle: 'Absolute photometric distance between the independent Classical and Deep Learning predictions',
-          explanation: 'Highlights regions where the physics-based Retinex model and deep neural network diverge in tone mapping or texture synthesis. Areas with high disagreement trigger bounded quality guardian verification.',
-          colorbarLeft: '0.0 (Zero Disagreement)',
-          colorbarRight: '1.0 (High Disagreement)',
+          title: 'Method Disagreement Map',
+          subtitle: 'Where the AI and Classical methods made different choices',
+          explanation: 'Highlights areas where the two techniques differed most. The Quality Guardian reconciles these areas to prevent halo artifacts and color bleeding.',
+          colorbarLeft: 'Agreement',
+          colorbarRight: 'Disagreement',
           colorbarGradient: 'linear-gradient(to right, #0F172A 0%, #1E40AF 35%, #DC2626 75%, #FEF08A 100%)',
         };
       case 'change':
         return {
-          title: 'Pixel Change Heatmap (|I_Restored - I_Original|)',
-          subtitle: 'Per-pixel absolute dynamic range delta between the restored output and the raw dark capture',
-          explanation: 'Reveals the exact spatial distribution of energy injection across the frame. High values correspond to deep shadow areas that received maximum non-linear photon amplification.',
-          colorbarLeft: '0 (Unchanged)',
-          colorbarRight: '255 (Maximum Amplification)',
+          title: 'Brightness Boost Map',
+          subtitle: 'Shows where light was added to the photo',
+          explanation: 'Yellow and green areas received the biggest brightness boost (deep shadows), while dark purple areas were already illuminated.',
+          colorbarLeft: 'Unchanged',
+          colorbarRight: 'Maximum Boost',
           colorbarGradient: 'linear-gradient(to right, #440154 0%, #31688E 35%, #35B779 70%, #FDE725 100%)',
         };
     }

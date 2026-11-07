@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScanLine, Eye, ShieldCheck, ArrowDown } from 'lucide-react';
+import { Sparkles, Shield, Zap } from 'lucide-react';
 
 interface HeroStripProps {
   onUploadClick: () => void;
@@ -10,7 +10,7 @@ export const HeroStrip: React.FC<HeroStripProps> = ({ onUploadClick }) => {
     <div style={{
       backgroundColor: 'var(--bg-surface)',
       borderBottom: '1px solid var(--border-subtle)',
-      padding: '32px 0 24px 0'
+      padding: '24px 0 20px 0'
     }}>
       <div className="content-wrapper">
         <div style={{
@@ -18,84 +18,58 @@ export const HeroStrip: React.FC<HeroStripProps> = ({ onUploadClick }) => {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '20px'
+          gap: '16px'
         }}>
           <div>
             <h1 style={{
-              fontSize: '24px',
+              fontSize: '22px',
               fontWeight: 600,
               color: 'var(--text-primary)',
-              letterSpacing: '-0.02em',
-              marginBottom: '6px'
+              letterSpacing: '-0.01em',
+              marginBottom: '4px'
             }}>
-              Explainable Low-Light Image Restoration
+              Low-Light Photo Restoration
             </h1>
             <p style={{
               fontSize: '14px',
-              color: 'var(--text-secondary)',
-              maxWidth: '680px'
+              color: 'var(--text-secondary)'
             }}>
-              Spatially adaptive hybrid fusion integrating classical multi-scale Retinex decomposition with deep transformer inference and automated quality constraint enforcement.
+              Brighten dark photos, remove camera noise, and restore natural colors with hybrid AI and computer vision.
             </p>
           </div>
 
-          <div>
-            <button 
-              onClick={onUploadClick}
-              className="btn-primary"
-            >
-              <span>Upload image</span>
-              <ArrowDown size={15} />
-            </button>
-          </div>
+          <button 
+            type="button"
+            onClick={onUploadClick}
+            className="btn-primary"
+            style={{ padding: '8px 16px', fontSize: '13px' }}
+          >
+            Upload a photo
+          </button>
         </div>
 
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '24px',
-          marginTop: '24px',
-          paddingTop: '16px',
+          gap: '20px',
+          marginTop: '16px',
+          paddingTop: '12px',
           borderTop: '1px solid var(--border-subtle)',
           flexWrap: 'wrap'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              color: 'var(--accent-primary)',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <ScanLine size={16} />
-            </div>
-            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-              Region-aware restoration
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <Zap size={15} color="var(--accent-primary)" />
+            <span>Fast processing</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              color: 'var(--accent-primary)',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <Eye size={16} />
-            </div>
-            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-              Fully explainable outputs
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <Sparkles size={15} color="var(--accent-primary)" />
+            <span>AI shadow enhancement</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              color: 'var(--status-success)',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <ShieldCheck size={16} />
-            </div>
-            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
-              Quality-verified results
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--status-success)' }}>
+            <Shield size={15} color="var(--status-success)" />
+            <span>Quality-checked outputs</span>
           </div>
         </div>
       </div>

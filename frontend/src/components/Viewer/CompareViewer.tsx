@@ -531,3 +531,4 @@ export const CompareViewer: React.FC<CompareViewerProps> = ({
     </div>
   );
 };
+

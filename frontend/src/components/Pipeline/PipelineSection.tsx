@@ -302,22 +302,20 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
             }}>
               <div>
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  Adaptive Fusion Governing Equation
+                  How Hybrid Blending Works
                 </div>
                 <div style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  fontFamily: 'serif',
+                  fontSize: '15px',
+                  fontWeight: 600,
                   color: 'var(--accent-primary)',
-                  letterSpacing: '0.05em',
                   marginTop: '4px'
                 }}>
-                  I<sub>H</sub>(x, y) = W(x, y) · I<sub>D</sub>(x, y) + [1 - W(x, y)] · I<sub>C</sub>(x, y)
+                  Final Image = (AI Model × Shadow Weight) + (Classical Filter × Edge Weight)
                 </div>
               </div>
 
               <div style={{ maxWidth: '440px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                Where <strong>W(x, y) ∈ [0, 1]</strong> is the spatially continuous weight field calculated from local luminance gradient, dark-channel prior, and high-frequency edge variance.
+                The AI model handles noise suppression and smooth shadows, while classical filters preserve fine lines and prevent blurry details.
               </div>
             </div>
           </div>

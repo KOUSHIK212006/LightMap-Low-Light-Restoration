@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, Image as ImageIcon, Trash2, Play, Sparkles, AlertCircle } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Trash2, Play, AlertCircle } from 'lucide-react';
 import type { ImageProfile, RestorationMode } from '../../types/image';
 import { MethodSelector } from '../MethodSelector/MethodSelector';
 import { fetchSampleImage } from '../../services/api';
@@ -57,19 +57,16 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
@@ -104,18 +101,8 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
   };
 
   return (
-    <section id="workspace" style={{ padding: '32px 0' }}>
+    <section id="workspace" style={{ padding: '28px 0' }}>
       <div className="content-wrapper">
-        <div className="section-header">
-          <h2 className="section-title">
-            <Sparkles size={20} color="var(--accent-primary)" />
-            Restoration Workspace
-          </h2>
-          <p className="section-description">
-            Ingest underexposed captures, configure restoration profiles, and trigger adaptive hybrid reconstruction.
-          </p>
-        </div>
-
         {errorMessage && (
           <div style={{
             display: 'flex',
@@ -136,34 +123,27 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(340px, 1fr) 1.5fr',
+          gridTemplateColumns: 'minmax(320px, 1fr) 1.5fr',
           gap: '24px',
           alignItems: 'start'
         }}>
-          {/* Left Column: Dropzone */}
-          <div className="card" style={{ padding: '24px' }}>
+          {/* Left: Image Uploader */}
+          <div className="card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '14px'
+              marginBottom: '12px'
             }}>
-              <label style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em'
-              }}>
-                Source Capture
+              <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Your Photo
               </label>
               {selectedFile && (
                 <button
                   type="button"
                   onClick={() => onFileSelect(null)}
                   className="btn-ghost"
-                  style={{ color: 'var(--status-error)', padding: '4px 8px', fontSize: '12px' }}
-                  title="Remove selected file"
+                  style={{ color: 'var(--status-error)', padding: '2px 6px', fontSize: '12px' }}
                 >
                   <Trash2 size={13} style={{ marginRight: '4px' }} />
                   Remove
@@ -189,31 +169,31 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                   border: `2px dashed ${isDragging ? 'var(--accent-primary)' : 'var(--border-strong)'}`,
                   backgroundColor: isDragging ? 'var(--accent-subtle)' : 'var(--bg-surface-subtle)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '48px 20px',
+                  padding: '40px 16px',
                   textAlign: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
               >
                 <div style={{
-                  width: '44px',
-                  height: '44px',
+                  width: '40px',
+                  height: '40px',
                   borderRadius: '50%',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--accent-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 14px auto',
+                  margin: '0 auto 12px auto',
                   boxShadow: 'var(--shadow-sm)'
                 }}>
-                  <UploadCloud size={22} />
+                  <UploadCloud size={20} />
                 </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  Click to upload or drag & drop
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                  Click to choose a photo
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                  PNG, JPG or JPEG (Max 25MB)
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                  or drag and drop (PNG, JPG)
                 </div>
 
                 <button
@@ -224,10 +204,10 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                     handleLoadSample();
                   }}
                   className="btn-secondary"
-                  style={{ fontSize: '12px', padding: '6px 12px' }}
+                  style={{ fontSize: '12px', padding: '5px 12px' }}
                 >
                   <ImageIcon size={13} style={{ marginRight: '6px' }} />
-                  {isLoadingSample ? 'Loading sample...' : 'Try sample image (test_dark.jpg)'}
+                  {isLoadingSample ? 'Loading...' : 'Try sample photo'}
                 </button>
               </div>
             ) : (
@@ -238,7 +218,7 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                 backgroundColor: 'var(--bg-surface-subtle)'
               }}>
                 <div style={{
-                  height: '220px',
+                  height: '210px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -250,27 +230,12 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                     <img
                       src={previewUrl}
                       alt="Selected low light input"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain'
-                      }}
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                     />
                   )}
-                  <span className="badge badge-neutral" style={{
-                    position: 'absolute',
-                    top: '10px',
-                    left: '10px',
-                    backgroundColor: 'rgba(0,0,0,0.6)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontSize: '11px'
-                  }}>
-                    Input Preview
-                  </span>
                 </div>
 
-                <div style={{ padding: '14px 16px', backgroundColor: 'var(--bg-surface)' }}>
+                <div style={{ padding: '12px 14px', backgroundColor: 'var(--bg-surface)' }}>
                   <div style={{
                     fontSize: '13px',
                     fontWeight: 600,
@@ -278,71 +243,54 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    marginBottom: '6px'
+                    marginBottom: '4px'
                   }}>
                     {selectedFile.name}
                   </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <span>Size: <strong style={{ color: 'var(--text-primary)' }}>{formatFileSize(selectedFile.size)}</strong></span>
-                    <span>•</span>
-                    <span>Resolution: <strong style={{ color: 'var(--text-primary)' }}>{dimensions ? `${dimensions.width} × ${dimensions.height}px` : 'Calculating...'}</strong></span>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <span>{formatFileSize(selectedFile.size)}</span>
+                    <span style={{ margin: '0 6px' }}>•</span>
+                    <span>{dimensions ? `${dimensions.width} × ${dimensions.height}px` : 'Loading...'}</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Right Column: Settings & Execution */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Profile Selector */}
-            <div className="card" style={{ padding: '24px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '12px'
+          {/* Right: Settings & Mode */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Style Selector */}
+            <div className="card" style={{ padding: '20px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '10px'
               }}>
-                <label style={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em'
-                }}>
-                  Enhancement Profile
-                </label>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Controls tone curves & noise dampening
-                </span>
-              </div>
+                Restoration Style
+              </label>
 
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '10px',
-                marginBottom: '10px'
+                gap: '10px'
               }}>
                 {[
                   {
                     id: 'natural' as ImageProfile,
                     label: 'Natural',
-                    desc: 'Balanced tone curve, preserves natural contrast and low noise.',
+                    desc: 'Balanced. Keeps real-life look.',
                   },
                   {
                     id: 'visibility' as ImageProfile,
-                    label: 'Maximum Visibility',
-                    desc: 'Aggressive dynamic range expansion for extreme underexposure.',
+                    label: 'High Brightness',
+                    desc: 'Brightest. Reveals dark shadows.',
                   },
                   {
                     id: 'detail' as ImageProfile,
-                    label: 'Detail Preservation',
-                    desc: 'High edge conservation with controlled spatial bilateral filter.',
+                    label: 'Keep Details',
+                    desc: 'Sharp edges. Best for text and signs.',
                   },
                 ].map((item) => (
                   <button
@@ -350,7 +298,7 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                     type="button"
                     onClick={() => onProfileSelect(item.id)}
                     style={{
-                      padding: '12px 14px',
+                      padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',
                       border: profile === item.id 
                         ? '1px solid var(--accent-primary)' 
@@ -367,15 +315,11 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                       fontSize: '13px',
                       fontWeight: 600,
                       color: profile === item.id ? 'var(--accent-primary)' : 'var(--text-primary)',
-                      marginBottom: '4px'
+                      marginBottom: '2px'
                     }}>
                       {item.label}
                     </div>
-                    <div style={{
-                      fontSize: '11px',
-                      color: 'var(--text-secondary)',
-                      lineHeight: 1.35
-                    }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
                       {item.desc}
                     </div>
                   </button>
@@ -383,8 +327,8 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
               </div>
             </div>
 
-            {/* Method Selector in card */}
-            <div className="card" style={{ padding: '24px' }}>
+            {/* Method Selector & Run */}
+            <div className="card" style={{ padding: '20px' }}>
               <MethodSelector
                 selectedMode={selectedMode}
                 onSelectMode={onModeSelect}
@@ -395,60 +339,53 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: '20px',
-                paddingTop: '16px',
+                marginTop: '16px',
+                paddingTop: '14px',
                 borderTop: '1px solid var(--border-subtle)'
               }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  All 3 methods are generated in parallel for instant switching.
-                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  All 3 methods run together so you can compare them instantly.
+                </span>
 
                 <button
                   type="button"
                   disabled={!selectedFile || isProcessing}
                   onClick={onRunRestoration}
                   className="btn-primary"
-                  style={{ minWidth: '160px' }}
+                  style={{ minWidth: '150px' }}
                 >
-                  <Play size={15} fill="currentColor" />
-                  <span>{isProcessing ? 'Processing...' : 'Run restoration'}</span>
+                  <Play size={14} fill="currentColor" />
+                  <span>{isProcessing ? 'Restoring...' : 'Restore Photo'}</span>
                 </button>
               </div>
 
               {isProcessing && (
                 <div style={{
-                  marginTop: '16px',
-                  padding: '12px 14px',
+                  marginTop: '12px',
+                  padding: '10px 14px',
                   backgroundColor: 'var(--bg-surface-subtle)',
                   borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '10px',
+                  fontSize: '12px',
+                  color: 'var(--text-primary)'
                 }}>
                   <div style={{
-                    width: '16px',
-                    height: '16px',
+                    width: '14px',
+                    height: '14px',
                     border: '2px solid var(--accent-subtle)',
                     borderTopColor: 'var(--accent-primary)',
                     borderRadius: '50%',
                     animation: 'spin 0.8s linear infinite'
                   }} />
-                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {currentStepMessage || 'Restoring image across Classical and Deep branches...'}
-                  </span>
+                  <span>{currentStepMessage || 'Enhancing photo...'}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </section>
   );
 };

@@ -242,16 +242,16 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Search size={18} color="var(--accent-primary)" />
+            <Search size={16} color="var(--accent-primary)" />
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Region Inspector (ROI Pixel Magnifier)
+              Pixel Zoom (8x Magnifier)
             </h3>
             <span className="badge badge-brand" style={{ fontSize: '11px' }}>
               8x Magnification
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Pixelated crop of local region at coordinate ({roi.x}, {roi.y}) with dimensions {roi.width} × {roi.height}px.
+            Inspect fine edges, textures, and noise suppression at coordinate ({roi.x}, {roi.y}).
           </p>
         </div>
 

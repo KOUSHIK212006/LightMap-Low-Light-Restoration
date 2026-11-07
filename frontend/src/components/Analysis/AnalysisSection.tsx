@@ -144,13 +144,13 @@ export const AnalysisSection: React.FC<AnalysisSectionProps> = ({
       <div className="content-wrapper">
         <div className="section-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BarChart3 size={20} color="var(--accent-primary)" />
+            <BarChart3 size={18} color="var(--accent-primary)" />
             <h2 className="section-title">
-              Quantitative Restoration Analysis
+              Restoration Analytics
             </h2>
           </div>
           <p className="section-description">
-            Objective metrics, spectral distributions, spatial grid heatmaps, and automated quality constraint validations.
+            Objective brightness measurements, color histograms, and quality safety checks.
           </p>
         </div>
 
@@ -483,10 +483,10 @@ export const AnalysisSection: React.FC<AnalysisSectionProps> = ({
           <div className="card" style={{ padding: '24px' }}>
             <div style={{ marginBottom: '16px' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Photometric Verification Table
+                Before &amp; After Measurements
               </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Measured pre- and post-enhancement characteristics
+                Measured lighting and sharpness differences
               </p>
             </div>
 
