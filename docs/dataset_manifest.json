@@ -1,0 +1,66 @@
+{
+  "manifest_version": "1.0.0",
+  "project": "LightMap - Low Light Image Restoration",
+  "generated_at": "2026-11-07",
+  "datasets": [
+    {
+      "id": "lol_v1",
+      "name": "LOL Dataset (Low-Light Dataset v1)",
+      "official_url": "https://daooshee.github.io/BMVC2018website/",
+      "paper": "Deep Retinex Decomposition for Low-Light Enhancement",
+      "conference": "BMVC 2018",
+      "authors": ["Chen Wei", "Wenjing Wang", "Wenhan Yang", "Jiaying Liu"],
+      "image_format": "PNG",
+      "splits": {
+        "train": 485,
+        "eval": 15
+      },
+      "type": "paired_real",
+      "license": "Non-commercial research use"
+    },
+    {
+      "id": "lol_v2_real",
+      "name": "LOL-v2 Real Captured Benchmark",
+      "official_url": "https://www.kaggle.com/datasets/tanhyml/lol-v2-dataset",
+      "paper": "Benchmarking Low-Light Image Enhancement and Beyond",
+      "journal": "IJCV 2021",
+      "authors": ["Wenhan Yang", "Wenjing Wang", "Haofeng Huang", "Shiqi Wang", "Jiaying Liu"],
+      "image_format": "PNG",
+      "splits": {
+        "train": 689,
+        "test": 100
+      },
+      "active_eval_subset": ["00690.png", "00691.png", "00692.png", "00693.png", "00694.png"],
+      "type": "paired_real",
+      "license": "Academic research use"
+    },
+    {
+      "id": "lol_v2_synthetic",
+      "name": "LOL-v2 Synthetic Low-Light Benchmark",
+      "official_url": "https://www.kaggle.com/datasets/tanhyml/lol-v2-dataset",
+      "paper": "Benchmarking Low-Light Image Enhancement and Beyond",
+      "journal": "IJCV 2021",
+      "authors": ["Wenhan Yang", "Wenjing Wang", "Haofeng Huang", "Shiqi Wang", "Jiaying Liu"],
+      "image_format": "PNG",
+      "splits": {
+        "train": 900,
+        "test": 100
+      },
+      "type": "paired_synthetic",
+      "license": "Academic research use"
+    },
+    {
+      "id": "mit_adobe_fivek",
+      "name": "MIT-Adobe FiveK Dataset",
+      "official_url": "https://data.csail.mit.edu/graphics/fivek/",
+      "paper": "Learning Photographic Global Tonal Adjustment with a Database of Input/Output Image Pairs",
+      "conference": "CVPR 2011",
+      "authors": ["Vladimir Bychkovsky", "Sylvain Paris", "Eric Chan", "Frédo Durand"],
+      "image_format": "DNG / TIFF / JPEG",
+      "total_images": 5000,
+      "reference_expert": "Expert C",
+      "type": "paired_expert_retouched",
+      "license": "Adobe-MIT FiveK License"
+    }
+  ]
+}

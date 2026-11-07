@@ -65,6 +65,17 @@ def validate_paired_dataset(data_dir: Path) -> dict:
     }
 
 if __name__ == "__main__":
+    manifest_path = Path(__file__).resolve().parent.parent / "docs" / "dataset_manifest.json"
+    if manifest_path.exists():
+        import json
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        print(f"Loaded manifest: {manifest['project']} (v{manifest['manifest_version']})")
+        print(f"Registered datasets ({len(manifest['datasets'])}):")
+        for ds in manifest["datasets"]:
+            print(f"  • {ds['id']}: {ds['name']} ({ds['official_url']})")
+        print("---")
+
     base_dir = Path(__file__).resolve().parent.parent / "data" / "eval_pairs"
     print(f"Validating dataset at: {base_dir}")
     report = validate_paired_dataset(base_dir)
@@ -76,3 +87,4 @@ if __name__ == "__main__":
         print("Issues/Warnings:")
         for iss in report["issues"]:
             print(f"  - {iss}")
+

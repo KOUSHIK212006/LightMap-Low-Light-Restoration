@@ -22,3 +22,4 @@ All quantitative metrics are measured against paired reference ground-truth imag
 - **PSNR (Peak Signal-to-Noise Ratio)**: Measured against GT in dB (higher is better).
 - **SSIM (Structural Similarity Index Measure)**: Measured across RGB channels (0 to 1, higher is better).
 - **Latency (ms)**: End-to-end execution time per frame.
+

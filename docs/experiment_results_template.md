@@ -17,3 +17,4 @@ Quantitative results measured on real reference image pairs from the LOL-v2 Real
 2. **Retinexformer (E2)** reconstructs textures and reduces noise exceptionally well, but has higher latency.
 3. **Adaptive Hybrid Fusion (E5 - IAAF)** balances structure preservation and noise suppression, significantly outperforming fixed-weight blending (+7.36 dB PSNR improvement over 50/50 fusion).
 4. The **Bounded Correction Mechanism** in the Quality Guardian successfully prevents highlight blowout and limits excessive brightening.
+

@@ -43,3 +43,4 @@ export default function ModeSelector({ selectedMode, onChange }: ModeSelectorPro
     </div>
   );
 }
+
