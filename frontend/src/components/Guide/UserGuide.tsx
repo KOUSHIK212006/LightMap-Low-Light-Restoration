@@ -4,8 +4,9 @@ import {
   Sparkles, 
   Sliders, 
   Cpu, 
-  CheckCircle2, 
-  HelpCircle 
+  Search, 
+  Layers, 
+  HelpCircle
 } from 'lucide-react';
 
 interface UserGuideProps {
@@ -14,37 +15,32 @@ interface UserGuideProps {
 
 export const UserGuide: React.FC<UserGuideProps> = ({ onGoToWorkspace }) => {
   return (
-    <div style={{ padding: '32px 0 64px 0' }}>
-      <div className="content-wrapper" style={{ maxWidth: '960px' }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+    <div style={{ padding: '24px 0 60px 0' }}>
+      <div className="content-wrapper" style={{ maxWidth: '880px' }}>
+        {/* What the tool does in 2 lines */}
+        <div style={{ marginBottom: '28px' }}>
           <h1 style={{
-            fontSize: '26px',
+            fontSize: '24px',
             fontWeight: 700,
-            color: 'var(--text-primary)',
+            color: '#1A2433',
             letterSpacing: '-0.02em',
-            marginBottom: '8px'
+            marginBottom: '6px'
           }}>
-            How to Use LightMap
+            LightMap User Guide
           </h1>
-          <p style={{
-            fontSize: '15px',
-            color: 'var(--text-secondary)',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            A simple, step-by-step guide to restoring low-light photos, choosing the right method, and reading the results.
+          <p style={{ fontSize: '14px', color: '#5B6778', lineHeight: 1.5 }}>
+            LightMap restores severely dark, underexposed, or noisy photos taken in dim environments.<br />
+            It combines computer vision filters with deep learning to reveal lost details without creating artificial glare.
           </p>
         </div>
 
-        {/* Step-by-Step Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '36px' }}>
-          {/* Step 1 */}
-          <div className="card" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+        {/* 4 Numbered Steps */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}>
+          <div className="card" style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
               <div style={{
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--accent-subtle)',
                 color: 'var(--accent-primary)',
@@ -52,37 +48,27 @@ export const UserGuide: React.FC<UserGuideProps> = ({ onGoToWorkspace }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: '15px',
+                fontSize: '14px',
                 flexShrink: 0
               }}>
                 1
               </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  Upload a Dark Photo
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                  Step 1: Choose a dark photo
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '12px' }}>
-                  Drag and drop any underexposed PNG or JPG file into the dropzone, or click <strong>"Try sample photo"</strong> to test with a dark indoor room sample.
+                <p style={{ fontSize: '13px', color: '#5B6778', lineHeight: 1.45 }}>
+                  Drag and drop any low-light photo (PNG or JPG) into the upload box. Or click <strong>"Try a sample image"</strong> to immediately test with a real low-light capture.
                 </p>
-                <div style={{
-                  padding: '10px 14px',
-                  backgroundColor: 'var(--bg-surface-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Tip: LightMap works best on raw nighttime captures, shadowed indoor rooms, and underexposed smartphone or DSLR photos.
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Step 2 */}
-          <div className="card" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+          <div className="card" style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
               <div style={{
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--accent-subtle)',
                 color: 'var(--accent-primary)',
@@ -90,66 +76,47 @@ export const UserGuide: React.FC<UserGuideProps> = ({ onGoToWorkspace }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: '15px',
+                fontSize: '14px',
                 flexShrink: 0
               }}>
                 2
               </div>
               <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  Choose Your Restoration Method
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                  Step 2: Choose a restoration method
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
-                  LightMap runs all three methods automatically so you can compare them side-by-side:
+                <p style={{ fontSize: '13px', color: '#5B6778', lineHeight: 1.45, marginBottom: '10px' }}>
+                  Pick one of the three options depending on your photo:
                 </p>
 
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '12px'
-                }}>
-                  <div style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-surface-subtle)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Sliders size={16} color="var(--text-secondary)" />
-                      <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Classical CV</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div style={{ padding: '10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                      <Sliders size={14} color="#5B6778" />
+                      <strong style={{ fontSize: '12px', color: '#1A2433' }}>Classical CV</strong>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      Fast (~40ms). Uses Retinex and contrast filters. Great for sharp lines and moderate darkness.
+                    <div style={{ fontSize: '11px', color: '#5B6778' }}>
+                      Fast fixed rules. Best for moderately dark photos with fine text.
                     </div>
                   </div>
 
-                  <div style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--accent-border)',
-                    backgroundColor: 'var(--accent-subtle)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Sparkles size={16} color="var(--accent-primary)" />
-                      <strong style={{ fontSize: '13px', color: 'var(--accent-primary)' }}>Hybrid (Recommended)</strong>
+                  <div style={{ padding: '10px', backgroundColor: 'var(--accent-subtle)', borderRadius: '4px', border: '1px solid var(--accent-border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                      <Sparkles size={14} color="var(--accent-primary)" />
+                      <strong style={{ fontSize: '12px', color: 'var(--accent-primary)' }}>Hybrid (Recommended)</strong>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      Best overall. Uses AI for smooth, noise-free shadows and classical filters for crisp edges.
+                    <div style={{ fontSize: '11px', color: '#5B6778' }}>
+                      Best overall. AI smooths deep shadows; classical keeps edges crisp.
                     </div>
                   </div>
 
-                  <div style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-surface-subtle)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Cpu size={16} color="var(--text-secondary)" />
-                      <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Deep Learning</strong>
+                  <div style={{ padding: '10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                      <Cpu size={14} color="#5B6778" />
+                      <strong style={{ fontSize: '12px', color: '#1A2433' }}>Deep Learning</strong>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      AI transformer model. Excels at extreme pitch-black scenes with high camera noise.
+                    <div style={{ fontSize: '11px', color: '#5B6778' }}>
+                      Neural transformer. Pulls clean shapes out of pitch-black shadows.
                     </div>
                   </div>
                 </div>
@@ -157,12 +124,11 @@ export const UserGuide: React.FC<UserGuideProps> = ({ onGoToWorkspace }) => {
             </div>
           </div>
 
-          {/* Step 3 */}
-          <div className="card" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+          <div className="card" style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
               <div style={{
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--accent-subtle)',
                 color: 'var(--accent-primary)',
@@ -170,47 +136,27 @@ export const UserGuide: React.FC<UserGuideProps> = ({ onGoToWorkspace }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: '15px',
+                fontSize: '14px',
                 flexShrink: 0
               }}>
                 3
               </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  Inspect the Results
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                  Step 3: Process the photo
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '12px' }}>
-                  Once processing completes, use the built-in diagnostic tools to verify quality:
+                <p style={{ fontSize: '13px', color: '#5B6778', lineHeight: 1.45 }}>
+                  Click <strong>"Restore Image"</strong>. A progress list tracks each stage: analysis, classical filtering, transformer inference, adaptive fusion, and quality check.
                 </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)' }}>
-                    <CheckCircle2 size={16} color="var(--status-success)" />
-                    <span><strong>Comparison Slider:</strong> Drag the handle across the image to see before and after. Use mouse wheel to zoom in.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)' }}>
-                    <CheckCircle2 size={16} color="var(--status-success)" />
-                    <span><strong>8x Pixel Zoom:</strong> Click anywhere on the photo to magnify that area and see exact pixel RGB changes.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--status-success)' }}>
-                    <CheckCircle2 size={16} color="var(--status-success)" />
-                    <span><strong>Blend &amp; Boost Maps:</strong> See exactly where the AI applied light and where it protected sharp textures.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--status-success)' }}>
-                    <CheckCircle2 size={16} color="var(--status-success)" />
-                    <span><strong>Quality Guardian:</strong> Verifies that highlights are not blown out and colors remain natural.</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Step 4 */}
-          <div className="card" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+          <div className="card" style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
               <div style={{
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--accent-subtle)',
                 color: 'var(--accent-primary)',
@@ -218,67 +164,122 @@ export const UserGuide: React.FC<UserGuideProps> = ({ onGoToWorkspace }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: '15px',
+                fontSize: '14px',
                 flexShrink: 0
               }}>
                 4
               </div>
               <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  Download Restored Image
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                  Step 4: Compare, inspect, and download
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
-                  Click <strong>"Download restored image"</strong> to save the full-resolution PNG file to your computer, or click <strong>"Download report"</strong> to save a complete JSON telemetry report of all metrics.
+                <p style={{ fontSize: '13px', color: '#5B6778', lineHeight: 1.45, marginBottom: '12px' }}>
+                  Use the before/after slider to review lighting improvements, zoom into pixels with the Region Inspector, and click <strong>"Download restored image"</strong> to save your photo.
                 </p>
 
                 <button
                   type="button"
                   onClick={onGoToWorkspace}
                   className="btn-primary"
-                  style={{ padding: '8px 18px', fontSize: '13px' }}
+                  style={{ padding: '6px 14px', fontSize: '12px' }}
                 >
-                  <UploadCloud size={15} style={{ marginRight: '6px' }} />
-                  Go to Workspace &amp; Upload
+                  <UploadCloud size={14} style={{ marginRight: '6px' }} />
+                  Go to Workspace
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick FAQ / Tips */}
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-            <HelpCircle size={18} color="var(--accent-primary)" />
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+        {/* How to use the Zoom and ROI Tool */}
+        <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <Search size={16} color="var(--accent-primary)" />
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433' }}>
+              How to Use the Region Inspector (ROI Zoom)
+            </h3>
+          </div>
+          <p style={{ fontSize: '13px', color: '#5B6778', lineHeight: 1.5, marginBottom: '12px' }}>
+            The Region Inspector gives you a magnified, pixel-accurate view of any part of your photo:
+          </p>
+          <ul style={{ paddingLeft: '20px', fontSize: '12px', color: '#5B6778', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <li><strong>Click anywhere on the photo:</strong> Instantly moves the magnification box to that spot.</li>
+            <li><strong>Keyboard nudging:</strong> Use the arrow keys on your keyboard to move the box by 1 pixel (hold Shift for 10 pixels).</li>
+            <li><strong>Type exact coordinates:</strong> You can type exact X, Y, Width, and Height values into the input boxes.</li>
+            <li><strong>Pixel readout:</strong> Hover your mouse over the magnified panels to view the exact RGB colors and brightness boost for that single pixel.</li>
+          </ul>
+        </div>
+
+        {/* How to read the Heatmaps */}
+        <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <Layers size={16} color="var(--accent-primary)" />
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433' }}>
+              How to Read the Diagnostic Heatmaps
+            </h3>
+          </div>
+          <p style={{ fontSize: '13px', color: '#5B6778', lineHeight: 1.5, marginBottom: '12px' }}>
+            The heatmaps visually explain how the algorithms made decisions across your photo:
+          </p>
+
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#1A2433', marginBottom: '4px' }}>
+              Sample Colorbar (Brightness Boost Map)
+            </div>
+            <div style={{
+              height: '12px',
+              borderRadius: '4px',
+              background: 'linear-gradient(to right, #440154 0%, #31688E 35%, #35B779 70%, #FDE725 100%)',
+              marginBottom: '4px'
+            }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#5B6778' }}>
+              <span>Dark Purple (0 = No change)</span>
+              <span>Green (Moderate lift)</span>
+              <span>Bright Yellow (Maximum boost)</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: '#5B6778' }}>
+            <div><strong>AI vs Classical Blend Map:</strong> Shows which method took control. Bright areas were handled by AI (smooth shadows); dark areas were handled by Classical filters (sharp outlines).</div>
+            <div><strong>Method Disagreement Map:</strong> Highlights areas where the two methods differed in tone. The Quality Guardian blends them safely to prevent halo artifacts.</div>
+            <div><strong>Brightness Boost Map:</strong> Yellow and green areas show where darkness was lifted; purple areas already had sufficient natural light.</div>
+          </div>
+        </div>
+
+        {/* Short FAQ */}
+        <div className="card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <HelpCircle size={16} color="var(--accent-primary)" />
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433' }}>
               Frequently Asked Questions
             </h3>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                Which restoration style should I choose?
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                Why does my image look different from the original?
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                Use <strong>Natural</strong> for standard room photos and portraits. Use <strong>High Brightness</strong> if the scene is almost pitch black. Use <strong>Keep Details</strong> if the photo contains text, signs, or fine architectural lines.
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                Why does Hybrid mode look better than Deep Learning alone?
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                Deep learning models are fantastic at brightening shadows without noise, but they can sometimes soften sharp edges. The hybrid mode blends in classical high-frequency edge filters so that text and textures stay razor-sharp while shadows stay clean.
+              <div style={{ fontSize: '12px', color: '#5B6778', lineHeight: 1.45 }}>
+                Cameras compress and hide details in dark shadows. LightMap expands the compressed dynamic range, reveals hidden textures, balances colors, and filters out camera sensor noise.
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                What does the Quality Guardian do?
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                Which method should I pick?
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                It acts as an automated safety check. If the restored photo is slightly too bright or clips light bulbs into white blobs, it automatically dampens the brightness and protects highlights before showing you the result.
+              <div style={{ fontSize: '12px', color: '#5B6778', lineHeight: 1.45 }}>
+                For almost all photos, select <strong>LightMap Hybrid</strong>. It uses deep learning for shadow recovery and classical filters for edge preservation. If you need instant processing (e.g. video frames), pick <strong>Classical CV</strong> (~40ms).
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                What file types and sizes work?
+              </div>
+              <div style={{ fontSize: '12px', color: '#5B6778', lineHeight: 1.45 }}>
+                LightMap supports standard <strong>PNG</strong>, <strong>JPG</strong>, and <strong>JPEG</strong> formats up to 25MB. Images are processed at their full original resolution.
               </div>
             </div>
           </div>

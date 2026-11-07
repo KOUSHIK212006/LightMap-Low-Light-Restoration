@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, Image as ImageIcon, Trash2, Play, AlertCircle } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Trash2, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { ImageProfile, RestorationMode } from '../../types/image';
 import { MethodSelector } from '../MethodSelector/MethodSelector';
 import { fetchSampleImage } from '../../services/api';
@@ -13,7 +13,7 @@ interface WorkspaceSectionProps {
   onModeSelect: (mode: RestorationMode) => void;
   onRunRestoration: () => void;
   isProcessing: boolean;
-  currentStepMessage?: string;
+  currentStepIndex?: number;
   errorMessage?: string | null;
 }
 
@@ -26,7 +26,7 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
   onModeSelect,
   onRunRestoration,
   isProcessing,
-  currentStepMessage,
+  currentStepIndex = 0,
   errorMessage,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -100,23 +100,31 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  const progressSteps = [
+    'Analysing the image',
+    'Brightening with classical rules',
+    'Brightening with the neural network',
+    'Combining both with adaptive fusion',
+    'Checking quality and highlight safety',
+  ];
+
   return (
-    <section id="workspace" style={{ padding: '28px 0' }}>
+    <section id="workspace" style={{ padding: '24px 0 16px 0' }}>
       <div className="content-wrapper">
         {errorMessage && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            padding: '12px 16px',
-            backgroundColor: 'var(--status-error-bg)',
-            border: '1px solid var(--status-error-border)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--status-error)',
-            marginBottom: '20px',
+            padding: '10px 14px',
+            backgroundColor: '#FDF2F2',
+            border: '1px solid #F9C0C0',
+            borderRadius: '6px',
+            color: '#C53030',
+            marginBottom: '18px',
             fontSize: '13px'
           }}>
-            <AlertCircle size={18} />
+            <AlertCircle size={16} />
             <div style={{ flex: 1 }}>{errorMessage}</div>
           </div>
         )}
@@ -124,26 +132,38 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(320px, 1fr) 1.5fr',
-          gap: '24px',
+          gap: '20px',
           alignItems: 'start'
         }}>
-          {/* Left: Image Uploader */}
+          {/* STEP 1: Upload */}
           <div className="card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '12px'
+              marginBottom: '10px'
             }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Your Photo
-              </label>
+              <div>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'var(--accent-primary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em'
+                }}>
+                  Step 1
+                </span>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433' }}>
+                  Choose a dark photo
+                </h3>
+              </div>
+
               {selectedFile && (
                 <button
                   type="button"
                   onClick={() => onFileSelect(null)}
                   className="btn-ghost"
-                  style={{ color: 'var(--status-error)', padding: '2px 6px', fontSize: '12px' }}
+                  style={{ color: '#C53030', padding: '2px 6px', fontSize: '12px' }}
                 >
                   <Trash2 size={13} style={{ marginRight: '4px' }} />
                   Remove
@@ -168,32 +188,32 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                 style={{
                   border: `2px dashed ${isDragging ? 'var(--accent-primary)' : 'var(--border-strong)'}`,
                   backgroundColor: isDragging ? 'var(--accent-subtle)' : 'var(--bg-surface-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '40px 16px',
+                  borderRadius: '6px',
+                  padding: '36px 16px',
                   textAlign: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
               >
                 <div style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: '#FFFFFF',
                   color: 'var(--accent-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 12px auto',
-                  boxShadow: 'var(--shadow-sm)'
+                  margin: '0 auto 10px auto',
+                  border: '1px solid var(--border-subtle)'
                 }}>
-                  <UploadCloud size={20} />
+                  <UploadCloud size={18} />
                 </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                  Click to choose a photo
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A2433', marginBottom: '2px' }}>
+                  Drop your image here, or browse
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-                  or drag and drop (PNG, JPG)
+                <div style={{ fontSize: '12px', color: '#5B6778', marginBottom: '14px' }}>
+                  Supports PNG and JPG
                 </div>
 
                 <button
@@ -207,24 +227,23 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                   style={{ fontSize: '12px', padding: '5px 12px' }}
                 >
                   <ImageIcon size={13} style={{ marginRight: '6px' }} />
-                  {isLoadingSample ? 'Loading...' : 'Try sample photo'}
+                  {isLoadingSample ? 'Loading...' : 'Try a sample image'}
                 </button>
               </div>
             ) : (
               <div style={{
-                borderRadius: 'var(--radius-md)',
+                borderRadius: '6px',
                 overflow: 'hidden',
                 border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-surface-subtle)'
+                backgroundColor: '#F1F4F9'
               }}>
                 <div style={{
-                  height: '210px',
+                  height: '190px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: '#0F172A',
                   overflow: 'hidden',
-                  position: 'relative'
                 }}>
                   {previewUrl && (
                     <img
@@ -235,151 +254,181 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({
                   )}
                 </div>
 
-                <div style={{ padding: '12px 14px', backgroundColor: 'var(--bg-surface)' }}>
+                <div style={{ padding: '12px 14px', backgroundColor: '#FFFFFF' }}>
                   <div style={{
                     fontSize: '13px',
                     fontWeight: 600,
-                    color: 'var(--text-primary)',
+                    color: '#1A2433',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    marginBottom: '4px'
+                    marginBottom: '2px'
                   }}>
                     {selectedFile.name}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '12px', color: '#5B6778' }}>
                     <span>{formatFileSize(selectedFile.size)}</span>
                     <span style={{ margin: '0 6px' }}>•</span>
-                    <span>{dimensions ? `${dimensions.width} × ${dimensions.height}px` : 'Loading...'}</span>
+                    <span>{dimensions ? `${dimensions.width} × ${dimensions.height} px` : 'Loading...'}</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Right: Settings & Mode */}
+          {/* STEP 2 & STEP 3: Method & Process */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Style Selector */}
+            {/* Step 2: Method Selector */}
             <div className="card" style={{ padding: '20px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: '10px'
-              }}>
-                Restoration Style
-              </label>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '10px'
-              }}>
-                {[
-                  {
-                    id: 'natural' as ImageProfile,
-                    label: 'Natural',
-                    desc: 'Balanced. Keeps real-life look.',
-                  },
-                  {
-                    id: 'visibility' as ImageProfile,
-                    label: 'High Brightness',
-                    desc: 'Brightest. Reveals dark shadows.',
-                  },
-                  {
-                    id: 'detail' as ImageProfile,
-                    label: 'Keep Details',
-                    desc: 'Sharp edges. Best for text and signs.',
-                  },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onProfileSelect(item.id)}
-                    style={{
-                      padding: '10px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: profile === item.id 
-                        ? '1px solid var(--accent-primary)' 
-                        : '1px solid var(--border-subtle)',
-                      backgroundColor: profile === item.id 
-                        ? 'var(--accent-subtle)' 
-                        : 'var(--bg-surface)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: profile === item.id ? 'var(--accent-primary)' : 'var(--text-primary)',
-                      marginBottom: '2px'
-                    }}>
-                      {item.label}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
-                      {item.desc}
-                    </div>
-                  </button>
-                ))}
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'var(--accent-primary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em'
+                }}>
+                  Step 2
+                </span>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433' }}>
+                  Choose a method
+                </h3>
               </div>
-            </div>
 
-            {/* Method Selector & Run */}
-            <div className="card" style={{ padding: '20px' }}>
               <MethodSelector
                 selectedMode={selectedMode}
                 onSelectMode={onModeSelect}
                 disabled={isProcessing}
               />
 
+              {/* Style selector inline */}
+              <div style={{
+                marginTop: '16px',
+                paddingTop: '12px',
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A2433' }}>
+                  Restoration Style:
+                </span>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {[
+                    { id: 'natural' as ImageProfile, label: 'Natural' },
+                    { id: 'visibility' as ImageProfile, label: 'High Brightness' },
+                    { id: 'detail' as ImageProfile, label: 'Keep Details' },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onProfileSelect(item.id)}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '12px',
+                        borderRadius: '4px',
+                        border: profile === item.id ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                        backgroundColor: profile === item.id ? 'var(--accent-subtle)' : '#FFFFFF',
+                        color: profile === item.id ? 'var(--accent-primary)' : '#1A2433',
+                        fontWeight: profile === item.id ? 600 : 400,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* STEP 3: Process Button & Progress */}
+            <div className="card" style={{ padding: '20px' }}>
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: '16px',
-                paddingTop: '14px',
-                borderTop: '1px solid var(--border-subtle)'
+                marginBottom: isProcessing ? '14px' : '0'
               }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  All 3 methods run together so you can compare them instantly.
-                </span>
+                <div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--accent-primary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}>
+                    Step 3
+                  </span>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1A2433' }}>
+                    Process image
+                  </h3>
+                </div>
 
                 <button
                   type="button"
                   disabled={!selectedFile || isProcessing}
                   onClick={onRunRestoration}
                   className="btn-primary"
-                  style={{ minWidth: '150px' }}
+                  style={{ minWidth: '150px', padding: '8px 16px' }}
                 >
                   <Play size={14} fill="currentColor" />
-                  <span>{isProcessing ? 'Restoring...' : 'Restore Photo'}</span>
+                  <span>{isProcessing ? 'Processing...' : 'Restore Image'}</span>
                 </button>
               </div>
 
+              {/* Progress list showing each stage */}
               {isProcessing && (
                 <div style={{
-                  marginTop: '12px',
-                  padding: '10px 14px',
+                  padding: '12px 14px',
                   backgroundColor: 'var(--bg-surface-subtle)',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  fontSize: '12px',
-                  color: 'var(--text-primary)'
+                  flexDirection: 'column',
+                  gap: '8px'
                 }}>
-                  <div style={{
-                    width: '14px',
-                    height: '14px',
-                    border: '2px solid var(--accent-subtle)',
-                    borderTopColor: 'var(--accent-primary)',
-                    borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite'
-                  }} />
-                  <span>{currentStepMessage || 'Enhancing photo...'}</span>
+                  {progressSteps.map((step, idx) => {
+                    const isDone = idx < currentStepIndex;
+                    const isCurrent = idx === currentStepIndex;
+                    return (
+                      <div
+                        key={step}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '12px',
+                          color: isCurrent ? 'var(--accent-primary)' : isDone ? '#1E8E5A' : '#8A96A6',
+                          fontWeight: isCurrent ? 600 : 400
+                        }}
+                      >
+                        {isDone ? (
+                          <CheckCircle2 size={14} color="#1E8E5A" />
+                        ) : isCurrent ? (
+                          <div style={{
+                            width: '12px',
+                            height: '12px',
+                            border: '2px solid var(--accent-subtle)',
+                            borderTopColor: 'var(--accent-primary)',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite'
+                          }} />
+                        ) : (
+                          <span style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '1px solid #CDD5DF',
+                            display: 'inline-block'
+                          }} />
+                        )}
+                        <span>{step}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

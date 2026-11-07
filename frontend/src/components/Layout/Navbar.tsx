@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { healthCheck } from '../../services/api';
 
 interface NavbarProps {
-  activeTab: 'workspace' | 'guide';
-  onSelectTab: (tab: 'workspace' | 'guide') => void;
+  activeTab: 'workspace' | 'pipeline' | 'guide';
+  onSelectTab: (tab: 'workspace' | 'pipeline' | 'guide') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
@@ -29,63 +29,45 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
 
   return (
     <header style={{
-      backgroundColor: 'var(--bg-surface)',
+      backgroundColor: '#FFFFFF',
       borderBottom: '1px solid var(--border-subtle)',
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      boxShadow: 'var(--shadow-sm)'
     }}>
       <div className="content-wrapper" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '60px'
+        height: '56px'
       }}>
-        {/* Brand */}
+        {/* Product Name */}
         <div 
           onClick={() => onSelectTab('workspace')}
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
         >
-          <div style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--accent-primary)',
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: '14px'
-          }}>
-            LM
-          </div>
-          <div>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              LightMap
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
-              Photo Restoration
-            </span>
-          </div>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: '#1A2433', letterSpacing: '-0.01em' }}>
+            LightMap
+          </span>
+          <span style={{ fontSize: '13px', color: '#5B6778' }}>
+            Low-Light Image Restoration
+          </span>
         </div>
 
-        {/* Navigation Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Small Nav + Status Dot */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button
             type="button"
             onClick={() => onSelectTab('workspace')}
             style={{
-              padding: '6px 14px',
+              padding: '6px 12px',
               fontSize: '13px',
-              fontWeight: activeTab === 'workspace' ? 600 : 500,
-              borderRadius: 'var(--radius-md)',
+              fontWeight: activeTab === 'workspace' ? 600 : 400,
+              borderRadius: '6px',
               backgroundColor: activeTab === 'workspace' ? 'var(--accent-subtle)' : 'transparent',
-              color: activeTab === 'workspace' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              color: activeTab === 'workspace' ? 'var(--accent-primary)' : '#5B6778',
               border: 'none',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
             }}
           >
             Workspace
@@ -93,39 +75,55 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
 
           <button
             type="button"
-            onClick={() => onSelectTab('guide')}
+            onClick={() => onSelectTab('pipeline')}
             style={{
-              padding: '6px 14px',
+              padding: '6px 12px',
               fontSize: '13px',
-              fontWeight: activeTab === 'guide' ? 600 : 500,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: activeTab === 'guide' ? 'var(--accent-subtle)' : 'transparent',
-              color: activeTab === 'guide' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'pipeline' ? 600 : 400,
+              borderRadius: '6px',
+              backgroundColor: activeTab === 'pipeline' ? 'var(--accent-subtle)' : 'transparent',
+              color: activeTab === 'pipeline' ? 'var(--accent-primary)' : '#5B6778',
               border: 'none',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
+            }}
+          >
+            How it works
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectTab('guide')}
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              fontWeight: activeTab === 'guide' ? 600 : 400,
+              borderRadius: '6px',
+              backgroundColor: activeTab === 'guide' ? 'var(--accent-subtle)' : 'transparent',
+              color: activeTab === 'guide' ? 'var(--accent-primary)' : '#5B6778',
+              border: 'none',
+              cursor: 'pointer',
             }}
           >
             User Guide
           </button>
 
           <div style={{
-            height: '16px',
+            height: '14px',
             width: '1px',
             backgroundColor: 'var(--border-subtle)',
-            margin: '0 8px'
+            margin: '0 6px'
           }} />
 
-          {/* Status Dot */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Backend Status Dot */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 4px' }}>
             <span style={{
-              width: '8px',
-              height: '8px',
+              width: '7px',
+              height: '7px',
               borderRadius: '50%',
-              backgroundColor: isOnline === true ? 'var(--status-success)' : isOnline === false ? 'var(--status-error)' : 'var(--status-warning)'
+              backgroundColor: isOnline === true ? '#1E8E5A' : isOnline === false ? '#C53030' : '#B7791F'
             }} />
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {isOnline === true ? 'Online' : isOnline === false ? 'Offline' : 'Connecting...'}
+            <span style={{ fontSize: '12px', color: '#5B6778' }}>
+              {isOnline === true ? 'Connected' : isOnline === false ? 'Offline' : 'Connecting'}
             </span>
           </div>
         </div>

@@ -290,13 +290,37 @@ a {
   background-color: rgba(247, 249, 252, 0.7);
 }
 
-/* Tooltip / Info bubble */
-.info-icon {
-  color: var(--text-tertiary);
-  cursor: help;
-  transition: color 0.15s ease;
+/* Responsive Layout Rules */
+@media (max-width: 1024px) {
+  .content-wrapper {
+    padding: 0 16px;
+  }
+
+  #workspace .content-wrapper > div[style*="grid-template-columns"],
+  .card [style*="grid-template-columns: 1.4fr 1fr"],
+  .card [style*="grid-template-columns: 1.2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
 }
 
-.info-icon:hover {
-  color: var(--accent-primary);
+@media (max-width: 600px) {
+  .content-wrapper {
+    padding: 0 12px;
+  }
+
+  [role="radiogroup"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card [style*="grid-template-columns: repeat(3, 1fr)"],
+  .card [style*="grid-template-columns: repeat(4, 1fr)"],
+  .card [style*="grid-template-columns: repeat(5, 1fr)"],
+  .card [style*="grid-template-columns: repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .enterprise-table th, .enterprise-table td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
 }

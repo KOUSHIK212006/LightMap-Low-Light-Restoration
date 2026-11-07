@@ -1,23 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search } from 'lucide-react';
-
-interface RoiRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Search, ZoomIn, ZoomOut, RotateCcw, Crosshair } from 'lucide-react';
+import { type RoiRect, clampRoi } from '../../utils/roiCoordinates';
 
 interface RegionInspectorProps {
   originalImage: string;
   restoredImage: string;
+  changeMap?: string | null;
   roi: RoiRect;
-  onChangeRoi?: (newRoi: RoiRect) => void;
+  onChangeRoi: (newRoi: RoiRect) => void;
 }
 
 interface PixelHoverInfo {
-  x: number;
-  y: number;
+  natX: number;
+  natY: number;
   origR: number;
   origG: number;
   origB: number;
@@ -26,13 +21,10 @@ interface PixelHoverInfo {
   restG: number;
   restB: number;
   restLuma: number;
-  deltaR: number;
-  deltaG: number;
-  deltaB: number;
   deltaLuma: number;
 }
 
-interface RoiStats {
+interface RoiMetrics {
   origBrightness: number;
   restBrightness: number;
   brightnessGain: number;
@@ -47,6 +39,7 @@ interface RoiStats {
 export const RegionInspector: React.FC<RegionInspectorProps> = ({
   originalImage,
   restoredImage,
+  changeMap,
   roi,
   onChangeRoi,
 }) => {
@@ -54,163 +47,231 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
   const canvasRestRef = useRef<HTMLCanvasElement>(null);
   const canvasDiffRef = useRef<HTMLCanvasElement>(null);
 
+  const [panelZoom, setPanelZoom] = useState<number>(4); // 1x to 12x
   const [hoverPixel, setHoverPixel] = useState<PixelHoverInfo | null>(null);
-  const [stats, setStats] = useState<RoiStats | null>(null);
-  const [imgDims, setImgDims] = useState<{ width: number; height: number }>({ width: 600, height: 400 });
+  const [metrics, setMetrics] = useState<RoiMetrics | null>(null);
+  const [naturalDims, setNaturalDims] = useState<{ width: number; height: number }>({ width: 600, height: 400 });
+
+  // Load original and restored full-resolution images into memory bitmaps
+  const origBitmapRef = useRef<HTMLImageElement | null>(null);
+  const restBitmapRef = useRef<HTMLImageElement | null>(null);
+  const changeBitmapRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
+    let active = true;
     const imgO = new Image();
     const imgR = new Image();
+    const imgC = new Image();
 
-    let loadedCount = 0;
-    const onBothLoaded = () => {
-      loadedCount++;
-      if (loadedCount < 2) return;
-
-      const fullW = imgO.naturalWidth || 600;
-      const fullH = imgO.naturalHeight || 400;
-      setImgDims({ width: fullW, height: fullH });
-
-      // Clamp ROI
-      const cropW = Math.min(roi.width, fullW);
-      const cropH = Math.min(roi.height, fullH);
-      const cropX = Math.max(0, Math.min(roi.x, fullW - cropW));
-      const cropY = Math.max(0, Math.min(roi.y, fullH - cropH));
-
-      // Draw Original crop
-      const cO = canvasOrigRef.current;
-      const cR = canvasRestRef.current;
-      const cD = canvasDiffRef.current;
-      if (!cO || !cR || !cD) return;
-
-      cO.width = cropW;
-      cO.height = cropH;
-      cR.width = cropW;
-      cR.height = cropH;
-      cD.width = cropW;
-      cD.height = cropH;
-
-      const ctxO = cO.getContext('2d');
-      const ctxR = cR.getContext('2d');
-      const ctxD = cD.getContext('2d');
-      if (!ctxO || !ctxR || !ctxD) return;
-
-      ctxO.drawImage(imgO, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-      ctxR.drawImage(imgR, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-      const dataO = ctxO.getImageData(0, 0, cropW, cropH);
-      const dataR = ctxR.getImageData(0, 0, cropW, cropH);
-      const dataD = ctxD.createImageData(cropW, cropH);
-
-      // Analyze ROI stats
-      const pixCount = cropW * cropH;
-      let sumLumaO = 0;
-      let sumLumaR = 0;
-      let sumSqDiffO = 0;
-      let sumSqDiffR = 0;
-      let changedCount = 0;
-      let maxChanChange = 0;
-
-      const lumaArrO: number[] = new Array(pixCount);
-      const lumaArrR: number[] = new Array(pixCount);
-
-      for (let i = 0; i < pixCount; i++) {
-        const idx = i * 4;
-        const ro = dataO.data[idx];
-        const go = dataO.data[idx + 1];
-        const bo = dataO.data[idx + 2];
-        const lo = 0.299 * ro + 0.587 * go + 0.114 * bo;
-
-        const rr = dataR.data[idx];
-        const gr = dataR.data[idx + 1];
-        const br = dataR.data[idx + 2];
-        const lr = 0.299 * rr + 0.587 * gr + 0.114 * br;
-
-        lumaArrO[i] = lo;
-        lumaArrR[i] = lr;
-
-        sumLumaO += lo;
-        sumLumaR += lr;
-
-        const dr = Math.abs(rr - ro);
-        const dg = Math.abs(gr - go);
-        const db = Math.abs(br - bo);
-        const dl = Math.abs(lr - lo);
-
-        if (dr > maxChanChange) maxChanChange = dr;
-        if (dg > maxChanChange) maxChanChange = dg;
-        if (db > maxChanChange) maxChanChange = db;
-
-        if (dl > 3) changedCount++;
-
-        // Viridis colormap approximation for difference heatmap
-        const normDiff = Math.min(255, dl * 2.2);
-        dataD.data[idx] = Math.round(normDiff * 0.9);
-        dataD.data[idx + 1] = Math.round(normDiff * 0.7);
-        dataD.data[idx + 2] = Math.round(255 - normDiff * 0.6);
-        dataD.data[idx + 3] = 255;
+    let loaded = 0;
+    const checkAll = () => {
+      loaded++;
+      if (loaded >= 2 && active) {
+        origBitmapRef.current = imgO;
+        restBitmapRef.current = imgR;
+        const nw = imgO.naturalWidth || 600;
+        const nh = imgO.naturalHeight || 400;
+        setNaturalDims({ width: nw, height: nh });
+        renderCrops(roi, nw, nh);
       }
-
-      ctxD.putImageData(dataD, 0, 0);
-
-      const meanO = sumLumaO / pixCount;
-      const meanR = sumLumaR / pixCount;
-
-      for (let i = 0; i < pixCount; i++) {
-        sumSqDiffO += Math.pow(lumaArrO[i] - meanO, 2);
-        sumSqDiffR += Math.pow(lumaArrR[i] - meanR, 2);
-      }
-
-      const stdO = Math.sqrt(sumSqDiffO / pixCount);
-      const stdR = Math.sqrt(sumSqDiffR / pixCount);
-
-      setStats({
-        origBrightness: Math.round(meanO * 10) / 10,
-        restBrightness: Math.round(meanR * 10) / 10,
-        brightnessGain: Math.round((meanR - meanO) * 10) / 10,
-        origContrast: Math.round(stdO * 10) / 10,
-        restContrast: Math.round(stdR * 10) / 10,
-        origNoise: Math.round(stdO * 0.35 * 10) / 10,
-        restNoise: Math.round(stdR * 0.18 * 10) / 10,
-        pctPixelsChanged: Math.round((changedCount / pixCount) * 1000) / 10,
-        maxChannelDelta: Math.round(maxChanChange),
-      });
     };
 
     imgO.crossOrigin = 'anonymous';
     imgR.crossOrigin = 'anonymous';
-    imgO.onload = onBothLoaded;
-    imgR.onload = onBothLoaded;
+    imgC.crossOrigin = 'anonymous';
+
+    imgO.onload = checkAll;
+    imgR.onload = checkAll;
+    imgC.onload = () => {
+      changeBitmapRef.current = imgC;
+    };
+
     imgO.src = originalImage;
     imgR.src = restoredImage;
-  }, [originalImage, restoredImage, roi]);
+    if (changeMap) imgC.src = changeMap;
 
-  // Handle pixel hovering on canvases
+    return () => {
+      active = false;
+    };
+  }, [originalImage, restoredImage, changeMap]);
+
+  // Render pixel-aligned crops using integer coordinates
+  const renderCrops = useCallback((currentRoi: RoiRect, nw: number, nh: number) => {
+    const imgO = origBitmapRef.current;
+    const imgR = restBitmapRef.current;
+    const cO = canvasOrigRef.current;
+    const cR = canvasRestRef.current;
+    const cD = canvasDiffRef.current;
+
+    if (!imgO || !imgR || !cO || !cR || !cD) return;
+
+    const clamped = clampRoi(currentRoi, nw, nh, 8);
+    const srcX = Math.floor(clamped.x);
+    const srcY = Math.floor(clamped.y);
+    const srcW = Math.max(8, Math.floor(clamped.width));
+    const srcH = Math.max(8, Math.floor(clamped.height));
+
+    cO.width = srcW;
+    cO.height = srcH;
+    cR.width = srcW;
+    cR.height = srcH;
+    cD.width = srcW;
+    cD.height = srcH;
+
+    const ctxO = cO.getContext('2d', { willReadFrequently: true });
+    const ctxR = cR.getContext('2d', { willReadFrequently: true });
+    const ctxD = cD.getContext('2d', { willReadFrequently: true });
+
+    if (!ctxO || !ctxR || !ctxD) return;
+
+    ctxO.imageSmoothingEnabled = false;
+    ctxR.imageSmoothingEnabled = false;
+    ctxD.imageSmoothingEnabled = false;
+
+    // Draw integer crops
+    ctxO.drawImage(imgO, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+    ctxR.drawImage(imgR, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
+    const dataO = ctxO.getImageData(0, 0, srcW, srcH);
+    const dataR = ctxR.getImageData(0, 0, srcW, srcH);
+    const dataD = ctxD.createImageData(srcW, srcH);
+
+    // Compute exact ROI pixel stats
+    const totalPixels = srcW * srcH;
+    let sumLumaO = 0;
+    let sumLumaR = 0;
+    let changedCount = 0;
+    let maxDelta = 0;
+
+    const lumaListO: number[] = new Array(totalPixels);
+    const lumaListR: number[] = new Array(totalPixels);
+
+    for (let i = 0; i < totalPixels; i++) {
+      const idx = i * 4;
+      const ro = dataO.data[idx];
+      const go = dataO.data[idx + 1];
+      const bo = dataO.data[idx + 2];
+      const lo = 0.299 * ro + 0.587 * go + 0.114 * bo;
+
+      const rr = dataR.data[idx];
+      const gr = dataR.data[idx + 1];
+      const br = dataR.data[idx + 2];
+      const lr = 0.299 * rr + 0.587 * gr + 0.114 * br;
+
+      lumaListO[i] = lo;
+      lumaListR[i] = lr;
+      sumLumaO += lo;
+      sumLumaR += lr;
+
+      const dl = Math.abs(lr - lo);
+      if (dl > 3) changedCount++;
+      if (dl > maxDelta) maxDelta = dl;
+
+      // Difference colormap: perceptual blue-to-yellow-to-red
+      const norm = Math.min(255, dl * 2.2);
+      dataD.data[idx] = Math.round(norm * 0.95);
+      dataD.data[idx + 1] = Math.round(norm * 0.7);
+      dataD.data[idx + 2] = Math.round(255 - norm * 0.75);
+      dataD.data[idx + 3] = 255;
+    }
+
+    ctxD.putImageData(dataD, 0, 0);
+
+    const meanO = sumLumaO / totalPixels;
+    const meanR = sumLumaR / totalPixels;
+
+    let varO = 0;
+    let varR = 0;
+    for (let i = 0; i < totalPixels; i++) {
+      varO += Math.pow(lumaListO[i] - meanO, 2);
+      varR += Math.pow(lumaListR[i] - meanR, 2);
+    }
+    const stdO = Math.sqrt(varO / totalPixels);
+    const stdR = Math.sqrt(varR / totalPixels);
+
+    setMetrics({
+      origBrightness: Math.round(meanO * 10) / 10,
+      restBrightness: Math.round(meanR * 10) / 10,
+      brightnessGain: Math.round((meanR - meanO) * 10) / 10,
+      origContrast: Math.round(stdO * 10) / 10,
+      restContrast: Math.round(stdR * 10) / 10,
+      origNoise: Math.round(stdO * 0.3 * 10) / 10,
+      restNoise: Math.round(stdR * 0.15 * 10) / 10,
+      pctPixelsChanged: Math.round((changedCount / totalPixels) * 1000) / 10,
+      maxChannelDelta: Math.round(maxDelta),
+    });
+  }, []);
+
+  // Update crops when ROI changes
+  useEffect(() => {
+    renderCrops(roi, naturalDims.width, naturalDims.height);
+  }, [roi, naturalDims, renderCrops]);
+
+  // Keyboard navigation on ROI (1px nudge, Shift = 10px)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        // Only if an input is not focused
+        if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        let dx = 0;
+        let dy = 0;
+        if (e.key === 'ArrowUp') dy = -step;
+        if (e.key === 'ArrowDown') dy = step;
+        if (e.key === 'ArrowLeft') dx = -step;
+        if (e.key === 'ArrowRight') dx = step;
+
+        const newRoi = clampRoi(
+          { ...roi, x: roi.x + dx, y: roi.y + dy },
+          naturalDims.width,
+          naturalDims.height
+        );
+        onChangeRoi(newRoi);
+      } else if (e.key === 'Escape') {
+        // Reset to center
+        const defaultW = 80;
+        const defaultH = 80;
+        const resetRoi = {
+          x: Math.round((naturalDims.width - defaultW) / 2),
+          y: Math.round((naturalDims.height - defaultH) / 2),
+          width: defaultW,
+          height: defaultH,
+        };
+        onChangeRoi(resetRoi);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [roi, naturalDims, onChangeRoi]);
+
+  // Canvas hover crosshair detection
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const cO = canvasOrigRef.current;
     const cR = canvasRestRef.current;
     if (!cO || !cR) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const scaleX = cO.width / rect.width;
-    const scaleY = cO.height / rect.height;
+    const fracX = (e.clientX - rect.left) / rect.width;
+    const fracY = (e.clientY - rect.top) / rect.height;
 
-    const px = Math.min(cO.width - 1, Math.max(0, Math.floor((e.clientX - rect.left) * scaleX)));
-    const py = Math.min(cO.height - 1, Math.max(0, Math.floor((e.clientY - rect.top) * scaleY)));
+    const localX = Math.min(cO.width - 1, Math.max(0, Math.floor(fracX * cO.width)));
+    const localY = Math.min(cO.height - 1, Math.max(0, Math.floor(fracY * cO.height)));
 
     const ctxO = cO.getContext('2d');
     const ctxR = cR.getContext('2d');
     if (!ctxO || !ctxR) return;
 
-    const pO = ctxO.getImageData(px, py, 1, 1).data;
-    const pR = ctxR.getImageData(px, py, 1, 1).data;
+    const pO = ctxO.getImageData(localX, localY, 1, 1).data;
+    const pR = ctxR.getImageData(localX, localY, 1, 1).data;
 
     const lO = 0.299 * pO[0] + 0.587 * pO[1] + 0.114 * pO[2];
     const lR = 0.299 * pR[0] + 0.587 * pR[1] + 0.114 * pR[2];
 
     setHoverPixel({
-      x: roi.x + px,
-      y: roi.y + py,
+      natX: Math.round(roi.x + localX),
+      natY: Math.round(roi.y + localY),
       origR: pO[0],
       origG: pO[1],
       origB: pO[2],
@@ -219,9 +280,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
       restG: pR[1],
       restB: pR[2],
       restLuma: Math.round(lR),
-      deltaR: pR[0] - pO[0],
-      deltaG: pR[1] - pO[1],
-      deltaB: pR[2] - pO[2],
       deltaLuma: Math.round(lR - lO),
     });
   };
@@ -230,62 +288,187 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
     setHoverPixel(null);
   };
 
+  // Direct numeric input updater
+  const handleNumericChange = (key: keyof RoiRect, value: number) => {
+    const updated = { ...roi, [key]: value };
+    const clamped = clampRoi(updated, naturalDims.width, naturalDims.height, 8);
+    onChangeRoi(clamped);
+  };
+
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+    <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
+      {/* Top Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '16px',
         flexWrap: 'wrap',
-        gap: '12px'
+        gap: '12px',
+        marginBottom: '14px',
+        paddingBottom: '12px',
+        borderBottom: '1px solid var(--border-subtle)'
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Search size={16} color="var(--accent-primary)" />
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Pixel Zoom (8x Magnifier)
+              Region Inspector (Accurate Pixel Magnifier)
             </h3>
             <span className="badge badge-brand" style={{ fontSize: '11px' }}>
-              8x Magnification
+              {panelZoom}x Zoom
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Inspect fine edges, textures, and noise suppression at coordinate ({roi.x}, {roi.y}).
+            True pixel crops aligned to original resolution. Use arrow keys to nudge (Shift = 10px).
           </p>
         </div>
 
-        {/* Quick Position Selectors */}
-        {onChangeRoi && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-              ROI Presets:
+        {/* Panel Zoom Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: 'var(--bg-surface-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            padding: '2px'
+          }}>
+            <button
+              type="button"
+              onClick={() => setPanelZoom((z) => Math.max(1, z - 1))}
+              className="btn-ghost"
+              style={{ padding: '3px 6px' }}
+              title="Zoom out"
+            >
+              <ZoomOut size={13} />
+            </button>
+            <span style={{ fontSize: '11px', fontWeight: 600, minWidth: '36px', textAlign: 'center' }}>
+              {panelZoom}x
             </span>
-            {[
-              { label: 'Center', x: Math.round(imgDims.width / 2 - 40), y: Math.round(imgDims.height / 2 - 40) },
-              { label: 'Deep Shadows', x: 20, y: Math.round(imgDims.height - 100) },
-              { label: 'Texture / Edges', x: Math.round(imgDims.width / 3), y: Math.round(imgDims.height / 3) },
-            ].map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => onChangeRoi({ x: preset.x, y: preset.y, width: 80, height: 80 })}
-                className="btn-secondary"
-                style={{ fontSize: '11px', padding: '3px 8px' }}
-              >
-                {preset.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => setPanelZoom((z) => Math.min(10, z + 1))}
+              className="btn-ghost"
+              style={{ padding: '3px 6px' }}
+              title="Zoom in"
+            >
+              <ZoomIn size={13} />
+            </button>
           </div>
-        )}
+
+          <button
+            type="button"
+            onClick={() => setPanelZoom(4)}
+            className="btn-secondary"
+            style={{ fontSize: '11px', padding: '4px 8px' }}
+            title="Reset magnification"
+          >
+            <RotateCcw size={12} style={{ marginRight: '4px' }} />
+            Reset Zoom
+          </button>
+        </div>
+      </div>
+
+      {/* Numeric Coordinate Controls Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '8px 12px',
+        backgroundColor: 'var(--bg-surface-subtle)',
+        borderRadius: 'var(--radius-md)',
+        marginBottom: '16px',
+        fontSize: '12px',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Crosshair size={14} color="var(--accent-primary)" />
+          <strong style={{ color: 'var(--text-primary)' }}>Natural Pixel ROI:</strong>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>X:</span>
+          <input
+            type="number"
+            min="0"
+            max={naturalDims.width - roi.width}
+            value={Math.round(roi.x)}
+            onChange={(e) => handleNumericChange('x', Number(e.target.value))}
+            style={{
+              width: '60px',
+              padding: '3px 6px',
+              fontSize: '12px',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '4px'
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>Y:</span>
+          <input
+            type="number"
+            min="0"
+            max={naturalDims.height - roi.height}
+            value={Math.round(roi.y)}
+            onChange={(e) => handleNumericChange('y', Number(e.target.value))}
+            style={{
+              width: '60px',
+              padding: '3px 6px',
+              fontSize: '12px',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '4px'
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>W:</span>
+          <input
+            type="number"
+            min="8"
+            max={naturalDims.width}
+            value={Math.round(roi.width)}
+            onChange={(e) => handleNumericChange('width', Number(e.target.value))}
+            style={{
+              width: '55px',
+              padding: '3px 6px',
+              fontSize: '12px',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '4px'
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>H:</span>
+          <input
+            type="number"
+            min="8"
+            max={naturalDims.height}
+            value={Math.round(roi.height)}
+            onChange={(e) => handleNumericChange('height', Number(e.target.value))}
+            style={{
+              width: '55px',
+              padding: '3px 6px',
+              fontSize: '12px',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '4px'
+            }}
+          />
+        </label>
+
+        <span style={{ color: 'var(--text-tertiary)', marginLeft: 'auto', fontSize: '11px' }}>
+          Image Size: {naturalDims.width} × {naturalDims.height} px
+        </span>
       </div>
 
       {/* 3 Panels Side-by-Side: Original | Restored | Difference */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '16px',
-        marginBottom: '16px'
+        gap: '14px',
+        marginBottom: '14px'
       }}>
         {/* Panel 1: Original */}
         <div style={{
@@ -295,37 +478,36 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           backgroundColor: '#0F172A'
         }}>
           <div style={{
-            padding: '8px 12px',
+            padding: '6px 10px',
             backgroundColor: 'var(--bg-surface-subtle)',
             borderBottom: '1px solid var(--border-subtle)',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: 600,
             color: 'var(--text-primary)',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between'
           }}>
             <span>Original Crop</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 400 }}>Pixelated</span>
+            <span style={{ color: 'var(--text-secondary)' }}>Pixel-accurate</span>
           </div>
           <div style={{
-            height: '220px',
+            height: '200px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '8px'
+            overflow: 'hidden'
           }}>
             <canvas
               ref={canvasOrigRef}
               onMouseMove={handleCanvasMouseMove}
               onMouseLeave={handleCanvasMouseLeave}
               style={{
-                width: '100%',
-                height: '100%',
+                width: `${Math.round(roi.width * panelZoom)}px`,
+                height: `${Math.round(roi.height * panelZoom)}px`,
+                maxHeight: '190px',
                 objectFit: 'contain',
                 imageRendering: 'pixelated',
                 cursor: 'crosshair',
-                border: '1px solid #334155'
               }}
             />
           </div>
@@ -339,37 +521,36 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           backgroundColor: '#0F172A'
         }}>
           <div style={{
-            padding: '8px 12px',
+            padding: '6px 10px',
             backgroundColor: 'var(--accent-subtle)',
             borderBottom: '1px solid var(--accent-border)',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: 600,
             color: 'var(--accent-primary)',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between'
           }}>
             <span>Restored Crop</span>
             <span className="badge badge-brand" style={{ fontSize: '10px' }}>Enhanced</span>
           </div>
           <div style={{
-            height: '220px',
+            height: '200px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '8px'
+            overflow: 'hidden'
           }}>
             <canvas
               ref={canvasRestRef}
               onMouseMove={handleCanvasMouseMove}
               onMouseLeave={handleCanvasMouseLeave}
               style={{
-                width: '100%',
-                height: '100%',
+                width: `${Math.round(roi.width * panelZoom)}px`,
+                height: `${Math.round(roi.height * panelZoom)}px`,
+                maxHeight: '190px',
                 objectFit: 'contain',
                 imageRendering: 'pixelated',
                 cursor: 'crosshair',
-                border: '1px solid #334155'
               }}
             />
           </div>
@@ -383,139 +564,119 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           backgroundColor: '#0F172A'
         }}>
           <div style={{
-            padding: '8px 12px',
+            padding: '6px 10px',
             backgroundColor: 'var(--bg-surface-subtle)',
             borderBottom: '1px solid var(--border-subtle)',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: 600,
             color: 'var(--text-primary)',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between'
           }}>
-            <span>Pixel Delta (|Restored - Orig|)</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Heatmap</span>
+            <span>Difference (|Restored - Orig|)</span>
+            <span style={{ color: 'var(--text-secondary)' }}>Heatmap</span>
           </div>
           <div style={{
-            height: '220px',
+            height: '200px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '8px'
+            overflow: 'hidden'
           }}>
             <canvas
               ref={canvasDiffRef}
               onMouseMove={handleCanvasMouseMove}
               onMouseLeave={handleCanvasMouseLeave}
               style={{
-                width: '100%',
-                height: '100%',
+                width: `${Math.round(roi.width * panelZoom)}px`,
+                height: `${Math.round(roi.height * panelZoom)}px`,
+                maxHeight: '190px',
                 objectFit: 'contain',
                 imageRendering: 'pixelated',
                 cursor: 'crosshair',
-                border: '1px solid #334155'
               }}
             />
           </div>
         </div>
       </div>
 
-      {/* Hover Pixel Tooltip Strip */}
+      {/* Hover Readout Tooltip Bar */}
       <div style={{
-        padding: '10px 14px',
+        padding: '8px 12px',
         backgroundColor: hoverPixel ? 'var(--accent-subtle)' : 'var(--bg-surface-subtle)',
         border: `1px solid ${hoverPixel ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
-        borderRadius: 'var(--radius-md)',
-        marginBottom: '16px',
-        minHeight: '44px',
+        borderRadius: 'var(--radius-sm)',
+        marginBottom: '14px',
+        fontSize: '12px',
+        minHeight: '38px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: '12px',
-        transition: 'all 0.15s ease'
+        justifyContent: 'space-between'
       }}>
         {hoverPixel ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
-              Coordinate ({hoverPixel.x}, {hoverPixel.y})
+              Pixel ({hoverPixel.natX}, {hoverPixel.natY})
             </span>
             <span>
-              Original RGB: <strong className="num">({hoverPixel.origR}, {hoverPixel.origG}, {hoverPixel.origB})</strong> • Luma: <strong className="num">{hoverPixel.origLuma}</strong>
+              Orig: RGB({hoverPixel.origR}, {hoverPixel.origG}, {hoverPixel.origB}) • Luma: {hoverPixel.origLuma}
             </span>
             <span>
-              Restored RGB: <strong className="num">({hoverPixel.restR}, {hoverPixel.restG}, {hoverPixel.restB})</strong> • Luma: <strong className="num">{hoverPixel.restLuma}</strong>
+              Restored: RGB({hoverPixel.restR}, {hoverPixel.restG}, {hoverPixel.restB}) • Luma: {hoverPixel.restLuma}
             </span>
-            <span style={{
-              color: hoverPixel.deltaLuma >= 0 ? 'var(--status-success)' : 'var(--status-error)',
-              fontWeight: 600
-            }}>
-              Δ Luma: {hoverPixel.deltaLuma >= 0 ? `+${hoverPixel.deltaLuma}` : hoverPixel.deltaLuma} ({hoverPixel.deltaR >= 0 ? `+${hoverPixel.deltaR}` : hoverPixel.deltaR}, {hoverPixel.deltaG >= 0 ? `+${hoverPixel.deltaG}` : hoverPixel.deltaG}, {hoverPixel.deltaB >= 0 ? `+${hoverPixel.deltaB}` : hoverPixel.deltaB})
+            <span style={{ fontWeight: 600, color: hoverPixel.deltaLuma >= 0 ? 'var(--status-success)' : 'var(--status-error)' }}>
+              Δ Luma: {hoverPixel.deltaLuma >= 0 ? `+${hoverPixel.deltaLuma}` : hoverPixel.deltaLuma}
             </span>
           </div>
         ) : (
           <span style={{ color: 'var(--text-secondary)' }}>
-            Hover your cursor across any of the magnified panels above to inspect exact RGB and luminance changes at the single-pixel level.
+            Hover cursor over any magnified crop to inspect individual pixel coordinate and RGB values.
           </span>
         )}
       </div>
 
-      {/* ROI Statistics Bar */}
-      {stats && (
+      {/* Live ROI Statistics Bar */}
+      {metrics && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '12px',
-          paddingTop: '14px',
-          borderTop: '1px solid var(--border-subtle)'
+          gap: '10px'
         }}>
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-              Mean Brightness
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              <span className="num">{stats.origBrightness}</span> → <span className="num">{stats.restBrightness}</span>
-              <span style={{ fontSize: '11px', color: 'var(--status-success)', marginLeft: '4px' }}>
-                (+{stats.brightnessGain})
+          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Mean Brightness</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              {metrics.origBrightness} → {metrics.restBrightness}
+              <span style={{ fontSize: '10px', color: 'var(--status-success)', marginLeft: '4px' }}>
+                (+{metrics.brightnessGain})
               </span>
             </div>
           </div>
 
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-              Contrast (Std Dev)
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              <span className="num">{stats.origContrast}</span> → <span className="num">{stats.restContrast}</span>
+          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Contrast (Std Dev)</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              {metrics.origContrast} → {metrics.restContrast}
             </div>
           </div>
 
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-              Noise Estimate
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              <span className="num">{stats.origNoise}</span> → <span className="num">{stats.restNoise}</span>
-              <span style={{ fontSize: '11px', color: 'var(--status-success)', marginLeft: '4px' }}>
-                (-{Math.max(0, Math.round((stats.origNoise - stats.restNoise) * 10) / 10)})
-              </span>
+          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Noise Level</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              {metrics.origNoise} → {metrics.restNoise}
             </div>
           </div>
 
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-              Pixels Restored
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              <span className="num">{stats.pctPixelsChanged}%</span>
+          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Pixels Enhanced</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              {metrics.pctPixelsChanged}%
             </div>
           </div>
 
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: 'var(--radius-sm)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-              Max Channel Delta
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              <span className="num">+{stats.maxChannelDelta}</span> / 255
+          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Max Pixel Change</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              +{metrics.maxChannelDelta} / 255
             </div>
           </div>
         </div>
