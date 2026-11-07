@@ -114,3 +114,4 @@ assert.strictEqual(clamped.height, 100);
 console.log("✓ Test 4 Passed: ROI clamping within natural image bounds");
 
 console.log("\nALL ROI COORDINATE TESTS PASSED SUCCESSFULLY!");
+

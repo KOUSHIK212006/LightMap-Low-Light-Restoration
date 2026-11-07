@@ -458,6 +458,74 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           />
         </label>
 
+        {/* Quick Size Presets */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>Size:</span>
+          {[
+            { label: '48px', size: 48 },
+            { label: '80px', size: 80 },
+            { label: '120px', size: 120 },
+          ].map((preset) => (
+            <button
+              key={preset.size}
+              type="button"
+              onClick={() => {
+                const nw = naturalDims.width;
+                const nh = naturalDims.height;
+                const s = Math.min(preset.size, Math.min(nw, nh));
+                const clamped = clampRoi(
+                  { ...roi, width: s, height: s },
+                  nw,
+                  nh
+                );
+                onChangeRoi(clamped);
+              }}
+              className="btn-secondary"
+              style={{
+                fontSize: '11px',
+                padding: '2px 6px',
+                backgroundColor: roi.width === preset.size ? 'var(--accent-subtle)' : undefined,
+                borderColor: roi.width === preset.size ? 'var(--accent-border)' : undefined,
+                color: roi.width === preset.size ? 'var(--accent-primary)' : undefined,
+                fontWeight: roi.width === preset.size ? 600 : 400
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Quick Anchor Presets */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>Focus:</span>
+          <button
+            type="button"
+            onClick={() => {
+              const nw = naturalDims.width;
+              const nh = naturalDims.height;
+              const cx = Math.max(0, Math.round((nw - roi.width) / 2));
+              const cy = Math.max(0, Math.round((nh - roi.height) / 2));
+              onChangeRoi({ ...roi, x: cx, y: cy });
+            }}
+            className="btn-secondary"
+            style={{ fontSize: '11px', padding: '2px 6px' }}
+            title="Center Region"
+          >
+            Center
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onChangeRoi({ ...roi, x: 10, y: 10 });
+            }}
+            className="btn-secondary"
+            style={{ fontSize: '11px', padding: '2px 6px' }}
+            title="Top-left corner"
+          >
+            Corner
+          </button>
+        </div>
+
         <span style={{ color: 'var(--text-tertiary)', marginLeft: 'auto', fontSize: '11px' }}>
           Image Size: {naturalDims.width} × {naturalDims.height} px
         </span>
@@ -475,7 +543,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
-          backgroundColor: '#0F172A'
         }}>
           <div style={{
             padding: '6px 10px',
@@ -490,13 +557,16 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
             <span>Original Crop</span>
             <span style={{ color: 'var(--text-secondary)' }}>Pixel-accurate</span>
           </div>
-          <div style={{
-            height: '200px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden'
-          }}>
+          <div 
+            className="darkroom-canvas"
+            style={{
+              height: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}
+          >
             <canvas
               ref={canvasOrigRef}
               onMouseMove={handleCanvasMouseMove}
@@ -508,6 +578,7 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
                 objectFit: 'contain',
                 imageRendering: 'pixelated',
                 cursor: 'crosshair',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
               }}
             />
           </div>
@@ -518,7 +589,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           border: '1px solid var(--accent-border)',
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
-          backgroundColor: '#0F172A'
         }}>
           <div style={{
             padding: '6px 10px',
@@ -533,13 +603,16 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
             <span>Restored Crop</span>
             <span className="badge badge-brand" style={{ fontSize: '10px' }}>Enhanced</span>
           </div>
-          <div style={{
-            height: '200px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden'
-          }}>
+          <div 
+            className="darkroom-canvas"
+            style={{
+              height: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}
+          >
             <canvas
               ref={canvasRestRef}
               onMouseMove={handleCanvasMouseMove}
@@ -551,6 +624,7 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
                 objectFit: 'contain',
                 imageRendering: 'pixelated',
                 cursor: 'crosshair',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
               }}
             />
           </div>
@@ -561,7 +635,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
-          backgroundColor: '#0F172A'
         }}>
           <div style={{
             padding: '6px 10px',
@@ -576,13 +649,16 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
             <span>Difference (|Restored - Orig|)</span>
             <span style={{ color: 'var(--text-secondary)' }}>Heatmap</span>
           </div>
-          <div style={{
-            height: '200px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden'
-          }}>
+          <div 
+            className="darkroom-canvas"
+            style={{
+              height: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}
+          >
             <canvas
               ref={canvasDiffRef}
               onMouseMove={handleCanvasMouseMove}
@@ -594,6 +670,7 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
                 objectFit: 'contain',
                 imageRendering: 'pixelated',
                 cursor: 'crosshair',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
               }}
             />
           </div>

@@ -53,3 +53,4 @@ def test_legacy_fusion_backward_compatibility():
     assert res["image"].shape == (40, 40, 3)
     assert "fusion_map" in res
     assert "branch_disagreement_map" in res
+

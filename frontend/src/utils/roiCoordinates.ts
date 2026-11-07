@@ -155,3 +155,4 @@ export function clampRoi(
 
   return { x, y, width: w, height: h };
 }
+
