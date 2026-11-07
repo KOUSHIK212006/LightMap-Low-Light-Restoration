@@ -5,18 +5,25 @@ import Header from '../components/Header';
 import ImagePreview from '../components/ImagePreview';
 import ImageUploader from '../components/ImageUploader';
 import LoadingState from '../components/LoadingState';
+import ModeSelector from '../components/ModeSelector';
 import ProfileSelector from '../components/ProfileSelector';
 import { enhanceImage, healthCheck } from '../services/api';
-import type { ImageProfile } from '../types/image';
+import type { ImageProfile, RestorationMode } from '../types/image';
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
+  const [classicalImage, setClassicalImage] = useState<string | null>(null);
+  const [deepImage, setDeepImage] = useState<string | null>(null);
+  const [fusionMap, setFusionMap] = useState<string | null>(null);
+  const [disagreementMap, setDisagreementMap] = useState<string | null>(null);
   const [profile, setProfile] = useState<ImageProfile>('natural');
+  const [mode, setMode] = useState<RestorationMode>('hybrid');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, unknown> | undefined>();
+  const [qualityReport, setQualityReport] = useState<Record<string, unknown> | undefined>();
   const [warnings, setWarnings] = useState<string[]>([]);
   const [timing, setTiming] = useState<Record<string, unknown>>({});
   const [selectedMethod, setSelectedMethod] = useState<string | undefined>();
@@ -53,8 +60,13 @@ export default function Home() {
     setStatusMessage(`Loaded ${file.name}. Ready to enhance.`);
     setOriginalImage(URL.createObjectURL(file));
     setEnhancedImage(null);
+    setClassicalImage(null);
+    setDeepImage(null);
+    setFusionMap(null);
+    setDisagreementMap(null);
     setWarnings([]);
     setAnalysis(undefined);
+    setQualityReport(undefined);
     setSelectedMethod(undefined);
     setProcessingStatus(undefined);
   };
@@ -66,9 +78,14 @@ export default function Home() {
     setSelectedFile(null);
     setOriginalImage(null);
     setEnhancedImage(null);
+    setClassicalImage(null);
+    setDeepImage(null);
+    setFusionMap(null);
+    setDisagreementMap(null);
     setError(null);
     setWarnings([]);
     setAnalysis(undefined);
+    setQualityReport(undefined);
     setSelectedMethod(undefined);
     setProcessingStatus(undefined);
     setStatusMessage('Image removed. Select an image to continue.');
@@ -82,12 +99,17 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
-    setStatusMessage('Sending image to the restoration backend...');
+    setStatusMessage('Running restoration pipeline...');
 
     try {
-      const result = await enhanceImage(selectedFile, profile);
+      const result = await enhanceImage(selectedFile, profile, mode);
       setEnhancedImage(result.final_image ?? null);
+      setClassicalImage(result.classical_image ?? result.classical_output ?? null);
+      setDeepImage(result.deep_image ?? result.deep_output ?? null);
+      setFusionMap(result.fusion_map ?? null);
+      setDisagreementMap(result.disagreement_map ?? null);
       setAnalysis((result.analysis ?? {}) as Record<string, unknown>);
+      setQualityReport((result.quality_report ?? {}) as Record<string, unknown>);
       setWarnings(result.warnings ?? []);
       setTiming((result.timing ?? result.timings ?? {}) as Record<string, unknown>);
       setSelectedMethod(result.selected_method ?? 'unknown');
@@ -108,7 +130,7 @@ export default function Home() {
         <div className="content-grid">
           <div className="panel">
             <div className="section-header-row">
-              <h2>Upload</h2>
+              <h2>Upload & Configure</h2>
               <span className="mini-badge">PNG • JPG • JPEG</span>
             </div>
             <ImageUploader onFileSelected={handleFileSelected} onRemove={handleRemoveImage} selectedFileName={selectedFile?.name} />
@@ -117,12 +139,14 @@ export default function Home() {
               <ProfileSelector selectedProfile={profile} onChange={setProfile} />
             </div>
 
+            <ModeSelector selectedMode={mode} onChange={setMode} />
+
             <div className="action-row">
               <button type="button" className="primary-button" onClick={handleEnhance} disabled={!selectedFile || loading || backendHealthy === false}>
-                {loading ? 'Enhancing...' : 'Enhance image'}
+                {loading ? 'Restoring...' : `Enhance image (${mode})`}
               </button>
               {enhancedImage && (
-                <a className="secondary-button" href={enhancedImage} download="lightmap-enhanced.png">
+                <a className="secondary-button" href={enhancedImage} download={`lightmap-${mode}-${profile}.png`}>
                   Download result
                 </a>
               )}
@@ -140,8 +164,8 @@ export default function Home() {
               <span className="mini-badge">Live</span>
             </div>
             <div className="preview-stack">
-              <ImagePreview imageSrc={originalImage ?? undefined} label="Original image" />
-              {enhancedImage && <ImagePreview imageSrc={enhancedImage} label="Enhanced result" />}
+              <ImagePreview imageSrc={originalImage ?? undefined} label="Original input image" />
+              {enhancedImage && <ImagePreview imageSrc={enhancedImage} label={`Enhanced (${selectedMethod || mode})`} />}
             </div>
           </div>
         </div>
@@ -150,7 +174,12 @@ export default function Home() {
           <ComparisonView
             originalImage={originalImage ?? undefined}
             enhancedImage={enhancedImage ?? undefined}
+            classicalImage={classicalImage ?? undefined}
+            deepImage={deepImage ?? undefined}
+            fusionMap={fusionMap ?? undefined}
+            disagreementMap={disagreementMap ?? undefined}
             analysis={analysis}
+            qualityReport={qualityReport}
             warnings={warnings}
             timing={timing}
             selectedMethod={selectedMethod}

@@ -66,6 +66,9 @@ serviceAccountKey.json
 # ------------------------------------------
 # Deep Learning Model Checkpoints
 # ------------------------------------------
+pretrained_weights/*
+!pretrained_weights/README.md
+!pretrained_weights/.gitkeep
 *.pth
 *.pt
 *.ckpt

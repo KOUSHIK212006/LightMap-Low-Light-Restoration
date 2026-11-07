@@ -1,0 +1,26 @@
+image_id,split,method,psnr,ssim,lpips,niqe,latency_ms,notes
+00690,test,Raw Input (Baseline),8.09,0.1599,NA,NA,0.0,Original unprocessed low-light capture
+00690,test,E1_Classical_CV,12.38,0.1868,NA,NA,281.3,CLAHE + Gamma + Retinex + Denoising
+00690,test,E2_Retinexformer,28.95,0.8597,NA,NA,2384.7,Pretrained LOL-v2 Real Transformer
+00690,test,E4_Fixed_Weight_Fusion,17.82,0.4519,NA,NA,2667.5,Fixed 50/50 linear blend
+00690,test,E5_LightMap_Adaptive_Fusion,25.55,0.7638,NA,NA,2678.6,Illumination-guided spatial weight map (IAAF)
+00691,test,Raw Input (Baseline),8.09,0.1561,NA,NA,0.0,Original unprocessed low-light capture
+00691,test,E1_Classical_CV,12.33,0.1733,NA,NA,215.1,CLAHE + Gamma + Retinex + Denoising
+00691,test,E2_Retinexformer,27.50,0.8285,NA,NA,2146.1,Pretrained LOL-v2 Real Transformer
+00691,test,E4_Fixed_Weight_Fusion,17.61,0.4271,NA,NA,2363.0,Fixed 50/50 linear blend
+00691,test,E5_LightMap_Adaptive_Fusion,24.66,0.7308,NA,NA,2373.3,Illumination-guided spatial weight map (IAAF)
+00692,test,Raw Input (Baseline),7.77,0.1061,NA,NA,0.0,Original unprocessed low-light capture
+00692,test,E1_Classical_CV,12.46,0.2608,NA,NA,212.4,CLAHE + Gamma + Retinex + Denoising
+00692,test,E2_Retinexformer,27.00,0.8806,NA,NA,2138.4,Pretrained LOL-v2 Real Transformer
+00692,test,E4_Fixed_Weight_Fusion,17.76,0.5177,NA,NA,2352.6,Fixed 50/50 linear blend
+00692,test,E5_LightMap_Adaptive_Fusion,24.86,0.8168,NA,NA,2364.3,Illumination-guided spatial weight map (IAAF)
+00693,test,Raw Input (Baseline),7.79,0.1101,NA,NA,0.0,Original unprocessed low-light capture
+00693,test,E1_Classical_CV,12.59,0.2716,NA,NA,214.8,CLAHE + Gamma + Retinex + Denoising
+00693,test,E2_Retinexformer,28.31,0.8924,NA,NA,2177.0,Pretrained LOL-v2 Real Transformer
+00693,test,E4_Fixed_Weight_Fusion,18.45,0.5401,NA,NA,2393.6,Fixed 50/50 linear blend
+00693,test,E5_LightMap_Adaptive_Fusion,27.02,0.8370,NA,NA,2405.3,Illumination-guided spatial weight map (IAAF)
+00694,test,Raw Input (Baseline),7.23,0.1163,NA,NA,0.0,Original unprocessed low-light capture
+00694,test,E1_Classical_CV,11.61,0.2208,NA,NA,216.5,CLAHE + Gamma + Retinex + Denoising
+00694,test,E2_Retinexformer,25.44,0.8779,NA,NA,2170.4,Pretrained LOL-v2 Real Transformer
+00694,test,E4_Fixed_Weight_Fusion,16.60,0.4774,NA,NA,2388.7,Fixed 50/50 linear blend
+00694,test,E5_LightMap_Adaptive_Fusion,22.98,0.7808,NA,NA,2398.9,Illumination-guided spatial weight map (IAAF)

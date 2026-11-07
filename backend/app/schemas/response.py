@@ -25,13 +25,21 @@ class EnhancementResponse(BaseModel):
     status: str
     message: str
     profile: str
+    selected_method: str | None = None
+    processing_status: str | None = None
     analysis: dict[str, Any] | None = None
     final_image: str | None = None
     classical_output: str | None = None
     deep_output: str | None = None
     hybrid_output: str | None = None
+    classical_image: str | None = None
+    deep_image: str | None = None
+    hybrid_image: str | None = None
+    fusion_map: str | None = None
+    disagreement_map: str | None = None
     quality_report: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
+    timings: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
     demo_mode: bool = False
 

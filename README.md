@@ -4,48 +4,62 @@
 ![Project](https://img.shields.io/badge/Project-LightMap-blue)
 ![Hackathon](https://img.shields.io/badge/Hackathon-Computer%20Vision%202026-purple)
 ![Problem](https://img.shields.io/badge/Problem%20ID-PS1-orange)
-![Status](https://img.shields.io/badge/Status-Under%20Development-yellow)
+![Status](https://img.shields.io/badge/Status-Integration%20Complete%20%26%20Verified-brightgreen)
 
 **LightMap** is an intelligent hybrid Computer Vision and Deep Learning system designed to restore severely underexposed, noisy, colour-distorted and unevenly illuminated images.
 
 Unlike conventional image enhancement applications that simply increase brightness, LightMap analyses different regions of an image, identifies their specific problems and applies suitable restoration strategies.
 
-The system combines Classical Computer Vision, Deep Learning, adaptive image fusion and recovery-aware analysis to produce clearer and more natural-looking photographs.
+The system combines Classical Computer Vision, Deep Learning (Retinexformer Transformer), adaptive image fusion (IAAF) and recovery-aware analysis to produce clearer and more natural-looking photographs.
 
 ---
 
-## Phase 1 quick start
+## Final Integration & Demo Quick Start
 
-This repository now includes the Koushik-owned application foundation: a FastAPI backend, a React + Vite dashboard, structured integration placeholders for Karen and Krishank, and a working upload/validation pipeline with fallback handling.
-
-### Backend
+### 1. Launch the Backend API
 
 ```bash
-py -3.11 -m venv .venv
-.venv\Scripts\activate
-pip install -r backend/requirements.txt
-copy backend\.env.example backend\.env
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+# Activate virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-### Frontend
+# Start FastAPI service
+PYTHONPATH=backend:. uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+API Documentation: `http://localhost:8000/docs`
+
+### 2. Launch the Frontend UI
 
 ```bash
 cd frontend
 npm install
-copy .env.example .env
-npm run dev -- --host 0.0.0.0
+npm run dev
 ```
+Open `http://localhost:5173` in your browser.
 
-### API overview
+### 3. Demo Features
+- **Upload & Previews**: Upload any low-light JPG or PNG photo.
+- **Restoration Modes**:
+  - `Adaptive Hybrid (IAAF)`: Spatially varying illumination weight maps fusing Classical CV and Retinexformer.
+  - `Classical CV Only`: Fast, interpretable pipeline (CLAHE, Retinex, Gamma, bilateral filter).
+  - `Deep Learning Only`: Transformer-based restoration via pretrained Retinexformer.
+- **Profiles**: Natural Restoration, Maximum Visibility, Detail Preservation.
+- **Explainability Maps**: Live visualization of the **Fusion Weight Map ($W$)** and **Branch Disagreement Map**.
+- **Quality Guardian**: Automated artifact checks (highlight clipping, brightness increase, Laplacian noise amplification, colour shift) with bounded retry correction.
+- **Download**: One-click download of high-resolution restored images.
 
-- `GET /` - base service information
-- `GET /health` - backend health status
-- `POST /api/v1/analyze` - analyze uploaded image
-- `POST /api/v1/enhance` - enhancement request with file upload and profile
-- `POST /api/v1/compare` - comparison summary with original and enhanced output
+### 4. Run Automated Test Suites & Evaluations
 
-> Phase 1 intentionally uses a documented demo fallback when optional restoration modules are unavailable. It never labels that output as a trained model result.
+```bash
+# Run Classical CV & Backend API tests
+PYTHONPATH=backend:. .venv/bin/pytest classical_cv/tests backend/tests
+
+# Verify Frontend TypeScript & Production Build
+npm --prefix frontend run build
+
+# Validate Reference Dataset & Run Real Benchmark Evaluation
+.venv/bin/python scripts/validate_datasets.py
+.venv/bin/python scripts/run_evaluation.py
+```
 
 ---
 

@@ -149,18 +149,38 @@ class RestorationService:
         except Exception as exc:  # pragma: no cover - defensive handling
             return None, f"Deep-learning enhancement failed: {exc}"
 
+    def _validate_map(self, map_data):
+        if map_data is None:
+            return None
+        arr = np.asarray(map_data, dtype=np.uint8)
+        if arr.ndim == 2:
+            return np.ascontiguousarray(np.stack([arr, arr, arr], axis=-1))
+        elif arr.ndim == 3 and arr.shape[2] == 1:
+            return np.ascontiguousarray(np.repeat(arr, 3, axis=2))
+        elif arr.ndim == 3 and arr.shape[2] == 3:
+            return np.ascontiguousarray(arr)
+        return None
+
     def _call_fusion_branch(self, image, classical_output, deep_output, analysis):
         if self.fusion_fn is None:
-            return None, "Adaptive fusion module is not available."
+            return None, None, None, "Adaptive fusion module is not available."
         if classical_output is None or deep_output is None:
-            return None, "Fusion requires both branch outputs."
+            return None, None, None, "Fusion requires both branch outputs."
 
         try:
             result = self.fusion_fn(image, classical_output, deep_output, analysis=analysis)
             output = self._extract_image_result(result)
-            return output, None
+            fusion_map = None
+            disagreement_map = None
+            if isinstance(result, dict):
+                fusion_map = self._validate_map(result.get("fusion_map"))
+                raw_disagreement = result.get("branch_disagreement_map")
+                if raw_disagreement is None:
+                    raw_disagreement = result.get("disagreement_map")
+                disagreement_map = self._validate_map(raw_disagreement)
+            return output, fusion_map, disagreement_map, None
         except Exception as exc:  # pragma: no cover - exercise defensive handling
-            return None, f"Adaptive fusion failed: {exc}"
+            return None, None, None, f"Adaptive fusion failed: {exc}"
 
     def _call_quality_check(self, image, final_output, analysis):
         if self.quality_fn is None:
@@ -174,6 +194,54 @@ class RestorationService:
         except Exception as exc:  # pragma: no cover - exercise defensive handling
             return {"status": "quality_check_failed", "warnings": [f"Quality check failed: {exc}"]}
 
+    def _apply_bounded_correction(self, original, candidate_output, analysis, max_retries=3):
+        """
+        Bounded correction mechanism (Section 6.4 of implementation.md).
+        1. Evaluate candidate output against quality constraints.
+        2. If constraints are violated, adjust parameters.
+        3. Re-evaluate.
+        4. Bounded to a maximum number of attempts (max_retries).
+        5. Returns the best output and the updated quality report.
+        """
+        current_img = candidate_output.copy()
+        corrections = []
+        best_report = self._call_quality_check(original, current_img, analysis)
+        retries = 0
+
+        for attempt in range(1, max_retries + 1):
+            if best_report.get("passed", False):
+                break
+
+            checks = best_report.get("checks", {})
+            warnings = best_report.get("warnings", [])
+            adjusted = False
+
+            # Check 1: Excessive brightness
+            if checks.get("brightness_increase", 0) > 0.45 or any("bright" in str(w).lower() for w in warnings):
+                factor = 0.92
+                current_img = np.clip(current_img.astype(np.float32) * factor, 0, 255).astype(np.uint8)
+                corrections.append(f"Attempt {attempt}: Applied brightness damping factor {factor}")
+                adjusted = True
+
+            # Check 2: Highlight clipping
+            if checks.get("clipping_increase", 0) > 0.04 or any("clipping" in str(w).lower() for w in warnings):
+                mask = current_img >= 245
+                current_img[mask] = np.clip(current_img[mask].astype(np.float32) * 0.95, 0, 255).astype(np.uint8)
+                corrections.append(f"Attempt {attempt}: Soft-clipped highlights above threshold")
+                adjusted = True
+
+            if not adjusted:
+                break
+
+            retries = attempt
+            best_report = self._call_quality_check(original, current_img, analysis)
+
+        if isinstance(best_report, dict):
+            best_report["retry_count"] = retries
+            best_report["corrections_applied"] = corrections
+
+        return current_img, best_report
+
     def _validate_output(self, output):
         if output is None:
             return None
@@ -182,7 +250,7 @@ class RestorationService:
             return None
         return array
 
-    def enhance(self, image: np.ndarray, profile: str = "natural") -> dict[str, Any]:
+    def enhance(self, image: np.ndarray, profile: str = "natural", mode: str = "hybrid") -> dict[str, Any]:
         start_time = time.time()
         warnings: list[str] = []
 
@@ -203,43 +271,59 @@ class RestorationService:
         deep_output = self._validate_output(deep_output)
 
         hybrid_output = None
+        fusion_map = None
+        disagreement_map = None
         hybrid_warning = None
         if classical_output is not None and deep_output is not None:
-            hybrid_output, hybrid_warning = self._call_fusion_branch(normalized_image, classical_output, deep_output, analysis)
+            hybrid_output, fusion_map, disagreement_map, hybrid_warning = self._call_fusion_branch(
+                normalized_image, classical_output, deep_output, analysis
+            )
             if hybrid_warning:
                 warnings.append(hybrid_warning)
             hybrid_output = self._validate_output(hybrid_output)
 
-        if classical_output is None and deep_output is None and hybrid_output is None:
-            demo_output = self._demo_enhance(normalized_image, profile=profile)
-            warnings.append("Neither restoration branch produced a valid output; using the documented demo fallback.")
-            final_output = demo_output
-            selected_method = "demo"
-            processing_status = "demo_fallback"
+        # Mode-aware selection
+        if mode == "classical" and classical_output is not None:
+            final_output = classical_output
+            selected_method = "classical"
+            processing_status = "success"
+        elif mode == "deep" and deep_output is not None:
+            final_output = deep_output
+            selected_method = "deep"
+            processing_status = "success"
+        elif (mode == "hybrid" or mode is None) and hybrid_output is not None:
+            final_output = hybrid_output
+            selected_method = "hybrid"
+            processing_status = "success"
         elif hybrid_output is not None:
             final_output = hybrid_output
             selected_method = "hybrid"
             processing_status = "success"
-        elif classical_output is not None and deep_output is not None:
-            final_output = classical_output
-            selected_method = "classical"
-            processing_status = "partial_success"
-            warnings.append("Fusion was unavailable or invalid; falling back to the classical branch output.")
         elif classical_output is not None:
             final_output = classical_output
             selected_method = "classical"
-            processing_status = "success"
+            processing_status = "partial_success"
+            if mode == "deep":
+                warnings.append("Deep mode requested but deep-learning output was unavailable; falling back to classical.")
+            elif mode == "hybrid":
+                warnings.append("Hybrid mode requested but fusion was unavailable; falling back to classical.")
         elif deep_output is not None:
             final_output = deep_output
             selected_method = "deep"
-            processing_status = "success"
+            processing_status = "partial_success"
+            warnings.append("Classical branch was unavailable; using deep-learning branch.")
         else:
             final_output = self._demo_enhance(normalized_image, profile=profile)
             selected_method = "demo"
             processing_status = "demo_fallback"
-            warnings.append("No valid restoration output was available; using the documented demo fallback.")
+            warnings.append("Neither restoration branch produced a valid output; using the documented demo fallback.")
 
-        quality_report = self._call_quality_check(normalized_image, final_output, analysis)
+        # Bounded Correction Mechanism
+        if final_output is not None:
+            final_output, quality_report = self._apply_bounded_correction(normalized_image, final_output, analysis)
+        else:
+            quality_report = self._call_quality_check(normalized_image, final_output, analysis)
+
         if quality_report.get("warnings"):
             warnings.extend(quality_report["warnings"])
 
@@ -257,6 +341,8 @@ class RestorationService:
             "classical_output": encode_image_to_data_url(classical_output) if classical_output is not None else None,
             "deep_output": encode_image_to_data_url(deep_output) if deep_output is not None else None,
             "hybrid_output": encode_image_to_data_url(hybrid_output) if hybrid_output is not None else None,
+            "fusion_map": encode_image_to_data_url(fusion_map) if fusion_map is not None else None,
+            "disagreement_map": encode_image_to_data_url(disagreement_map) if disagreement_map is not None else None,
             "quality_report": _sanitize_analysis_payload(quality_report),
             "timings": {"processing_ms": elapsed_ms},
             "timing": {"processing_ms": elapsed_ms},
@@ -267,8 +353,8 @@ class RestorationService:
         }
         return response
 
-    def compare(self, image: np.ndarray, profile: str = "natural") -> dict[str, Any]:
-        result = self.enhance(image, profile=profile)
+    def compare(self, image: np.ndarray, profile: str = "natural", mode: str = "hybrid") -> dict[str, Any]:
+        result = self.enhance(image, profile=profile, mode=mode)
         return {
             "message": "Comparison request accepted.",
             "profile": profile,
@@ -277,7 +363,10 @@ class RestorationService:
             "classical_image": result.get("classical_image"),
             "deep_image": result.get("deep_image"),
             "hybrid_image": result.get("hybrid_image"),
+            "fusion_map": result.get("fusion_map"),
+            "disagreement_map": result.get("disagreement_map"),
             "analysis": result.get("analysis"),
+            "quality_report": result.get("quality_report"),
             "warnings": result.get("warnings", []),
             "timings": result.get("timings", result.get("timing", {})),
             "selected_method": result.get("selected_method"),

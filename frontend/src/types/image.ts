@@ -1,4 +1,5 @@
 export type ImageProfile = 'natural' | 'visibility' | 'detail';
+export type RestorationMode = 'hybrid' | 'classical' | 'deep';
 
 export interface EnhancementResponse {
   status: string;
@@ -11,6 +12,8 @@ export interface EnhancementResponse {
   classical_output?: string | null;
   deep_output?: string | null;
   hybrid_output?: string | null;
+  fusion_map?: string | null;
+  disagreement_map?: string | null;
   analysis?: Record<string, unknown>;
   quality_report?: Record<string, unknown> | null;
   timing?: Record<string, unknown>;
