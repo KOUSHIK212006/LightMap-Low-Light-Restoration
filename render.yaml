@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: lightmap-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: LIGHTMAP_DEBUG
+        value: "false"
+      - key: LIGHTMAP_CORS_ORIGINS
+        sync: false
+      - key: LIGHTMAP_FRONTEND_ORIGIN
+        sync: false
+      - key: LIGHTMAP_DEEP_CHECKPOINT_PATH
+        value: ""
+      - key: LIGHTMAP_MAX_UPLOAD_SIZE_MB
+        value: "10"
+      - key: LIGHTMAP_MAX_IMAGE_WIDTH
+        value: "4096"
+      - key: LIGHTMAP_MAX_IMAGE_HEIGHT
+        value: "4096"

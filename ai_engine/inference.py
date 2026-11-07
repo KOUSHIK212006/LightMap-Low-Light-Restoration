@@ -1,78 +1,122 @@
-import numpy as np
-import cv2
-import time
-import sys
 import os
+import sys
+import time
 
-# --- IMPORTANT: Force Python to prioritize the local Retinexformer repo ---
-RETINEXFORMER_REPO_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Retinexformer'))
-if RETINEXFORMER_REPO_PATH not in sys.path:
-    sys.path.insert(0, RETINEXFORMER_REPO_PATH)
+import cv2
+import numpy as np
 
-# --- IMPORT BASICS ARCH ---
+# Configure Retinexformer repository location
+RETINEXFORMER_REPO_PATH = os.getenv(
+    "LIGHTMAP_RETINEXFORMER_REPO_PATH",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Retinexformer")),
+)
+if RETINEXFORMER_REPO_PATH and os.path.isdir(RETINEXFORMER_REPO_PATH):
+    RETINEXFORMER_REPO_PATH = os.path.abspath(RETINEXFORMER_REPO_PATH)
+    if RETINEXFORMER_REPO_PATH not in sys.path:
+        sys.path.insert(0, RETINEXFORMER_REPO_PATH)
+
+# Also check adjacent Retinexformer directory if not already found
+ALT_REPO_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "Retinexformer"))
+if os.path.isdir(ALT_REPO_PATH) and ALT_REPO_PATH not in sys.path:
+    sys.path.insert(0, ALT_REPO_PATH)
+
 try:
     import torch
     import torch.nn.functional as F
-    from basicsr.models.archs.RetinexFormer_arch import RetinexFormer
-    TORCH_AVAILABLE = True
-except (ImportError, ModuleNotFoundError):
+except ImportError:
     torch = None
     F = None
-    RetinexFormer = None
-    TORCH_AVAILABLE = False
 
-# Global model variable (loaded once)
+try:
+    from basicsr.models.archs.RetinexFormer_arch import RetinexFormer
+except (ImportError, ModuleNotFoundError):
+    RetinexFormer = None
+
+TORCH_AVAILABLE = torch is not None
+
 _model = None
 _device = None
 
+
+def _candidate_checkpoint_paths() -> list[str]:
+    configured = os.getenv("LIGHTMAP_DEEP_CHECKPOINT_PATH", "").strip()
+    paths: list[str] = []
+    if configured:
+        paths.append(configured)
+    paths.extend(
+        [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "pretrained_weights", "retinexformer-lol-v2-real.pth")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "pretrained_weights", "LOL_v2_real.pth")),
+        ]
+    )
+    return paths
+
+
 def _load_model():
-    """Loads the Retinexformer model and weights once with device auto-detection."""
+    """Loads the Retinexformer model and weights once, auto-detecting CUDA / MPS / CPU."""
     global _model, _device
+
     if not TORCH_AVAILABLE:
-        raise RuntimeError("PyTorch or Retinexformer (basicsr) is not installed.")
+        raise RuntimeError(
+            "PyTorch is not installed in this environment. Deep-learning restoration is unavailable "
+            "until torch is installed."
+        )
+
+    if RetinexFormer is None:
+        raise RuntimeError(
+            "Retinexformer model implementation is unavailable. Install the BasicSR/Retinexformer "
+            "dependency or set LIGHTMAP_RETINEXFORMER_REPO_PATH to the correct repo path."
+        )
 
     if _model is not None:
         return _model
-    
-    # Priority: CUDA -> Apple Silicon MPS -> CPU
+
+    # Device selection priority: CUDA -> Apple Silicon MPS -> CPU
     if torch.cuda.is_available():
-        _device = torch.device('cuda')
+        _device = torch.device("cuda")
     elif torch.backends.mps.is_available():
-        _device = torch.device('mps')
+        _device = torch.device("mps")
     else:
-        _device = torch.device('cpu')
-        
+        _device = torch.device("cpu")
+
     print(f"Loading Retinexformer on {_device}...")
-    
-    # Instantiate the architecture (LOL-v2 Real default config)
+
     model = RetinexFormer(
         in_channels=3,
         out_channels=3,
         n_feat=40,
         stage=1,
-        num_blocks=[1, 2, 2]
+        num_blocks=[1, 2, 2],
     ).to(_device)
-    
-    # Path to the downloaded weights
-    weights_path = os.path.join(
-        os.path.dirname(__file__), '..', 'pretrained_weights', 'retinexformer-lol-v2-real.pth'
-    )
-    
-    if not os.path.exists(weights_path):
+
+    weights_path = None
+    for candidate in _candidate_checkpoint_paths():
+        if os.path.exists(candidate):
+            weights_path = candidate
+            break
+
+    if weights_path is None:
         raise FileNotFoundError(
-            f"Pretrained weights not found at {weights_path}. "
-            "Please download 'retinexformer-lol-v2-real.pth' from Hugging Face."
+            "Deep model checkpoint is missing. Expected a Retinexformer checkpoint at "
+            "pretrained_weights/retinexformer-lol-v2-real.pth or via LIGHTMAP_DEEP_CHECKPOINT_PATH. "
+            "Classic CV remains available; deep mode is disabled until the checkpoint is added."
         )
-    
-    # Load weights
+
     checkpoint = torch.load(weights_path, map_location=_device)
-    state_dict = checkpoint.get('params', checkpoint)
+    if isinstance(checkpoint, dict) and "params" in checkpoint:
+        state_dict = checkpoint["params"]
+    elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    else:
+        state_dict = checkpoint
+
     model.load_state_dict(state_dict, strict=True)
     model.eval()
-    
+
     _model = model
-    print(f"Retinexformer loaded successfully on {_device}!")
+    print(f"Retinexformer model loaded successfully on {_device}.")
     return _model
+
 
 def enhance_deep(image: np.ndarray, model_name="retinexformer", profile="natural"):
     """
@@ -89,80 +133,75 @@ def enhance_deep(image: np.ndarray, model_name="retinexformer", profile="natural
     """
     if model_name != "retinexformer":
         return {"image": image, "model": "placeholder", "inference_time_ms": 0.0}
-    
+
     model = _load_model()
     h, w, c = image.shape
-    
+
     # 1. Preprocessing: HWC (RGB uint8) -> BGR float tensor
     t_start = time.time()
     image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     img_float = image_bgr.astype(np.float32) / 255.0
     img_tensor = torch.from_numpy(img_float).permute(2, 0, 1).unsqueeze(0).to(_device)
-    
+
     # Pad to multiple of 8 (required by multi-stage downsampling/upsampling blocks)
     factor = 8
     padh = ((h + factor - 1) // factor) * factor - h
     padw = ((w + factor - 1) // factor) * factor - w
     if padh > 0 or padw > 0:
-        img_padded = F.pad(img_tensor, (0, padw, 0, padh), mode='reflect')
+        img_padded = F.pad(img_tensor, (0, padw, 0, padh), mode="reflect")
     else:
         img_padded = img_tensor
-        
+
     t_prep = time.time()
-    
+
     # 2. Forward inference
     with torch.no_grad():
         output_tensor = model(img_padded)
-        if str(_device) == 'mps':
+        if str(_device) == "mps":
             torch.mps.synchronize()
-        elif str(_device).startswith('cuda'):
+        elif str(_device).startswith("cuda"):
             torch.cuda.synchronize()
-            
+
     t_forward = time.time()
-    
+
     # 3. Postprocessing & Unpadding
     if padh > 0 or padw > 0:
         output_tensor = output_tensor[:, :, :h, :w]
-        
+
     output_np = output_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()
     output_np = np.clip(output_np * 255.0, 0, 255).astype(np.uint8)
     output_rgb = cv2.cvtColor(output_np, cv2.COLOR_BGR2RGB)
-    
-    # 4. Highlight gradient recovery
-    # Deep networks often saturate bright light sources (lamps, neon) to pure 255 white blobs.
-    # Where deep output saturates (>= 245) while original capture had unsaturated gradients (< 235),
-    # smoothly blend original high-frequency details to recover filaments and glass housing.
+
+    # 4. Highlight gradient recovery for direct light sources
     orig_luma = 0.299 * image[:, :, 0] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 2]
     out_luma = 0.299 * output_rgb[:, :, 0] + 0.587 * output_rgb[:, :, 1] + 0.114 * output_rgb[:, :, 2]
-    
+
     saturated_mask = (out_luma >= 242) & (orig_luma >= 150)
     if np.any(saturated_mask):
         blur_mask = cv2.GaussianBlur(saturated_mask.astype(np.float32), (9, 9), 0)
         blur_mask_3c = np.expand_dims(np.clip(blur_mask * 0.75, 0.0, 0.75), axis=-1)
-        # Ratio scale to preserve lamp filaments without abrupt borders
         output_rgb = np.clip(
-            (1.0 - blur_mask_3c) * output_rgb.astype(np.float32) + 
-            blur_mask_3c * image.astype(np.float32) * 1.08,
-            0, 255
+            (1.0 - blur_mask_3c) * output_rgb.astype(np.float32)
+            + blur_mask_3c * image.astype(np.float32) * 1.08,
+            0,
+            255,
         ).astype(np.uint8)
-    
+
     # 5. Profile-guided tonal adjustments
     if profile == "visibility":
-        # Lift deep shadows moderately for surveillance/forensics
         shadow_mask = out_luma < 50
         if np.any(shadow_mask):
             lift = np.clip((50 - out_luma) / 50.0, 0, 1.0)
             lift_3c = np.expand_dims(cv2.GaussianBlur(lift * 15.0, (7, 7), 0), axis=-1)
             output_rgb = np.clip(output_rgb.astype(np.float32) + lift_3c, 0, 255).astype(np.uint8)
     elif profile == "detail":
-        # Micro-contrast enhancement on structural edges
         gaussian_blur = cv2.GaussianBlur(output_rgb, (0, 0), 2.0)
         unsharp = cv2.addWeighted(output_rgb, 1.25, gaussian_blur, -0.25, 0)
         output_rgb = np.clip(unsharp, 0, 255).astype(np.uint8)
-        
+
     total_time_ms = (time.time() - t_start) * 1000
     forward_time_ms = (t_forward - t_prep) * 1000
-    
+
     return {
         "image": output_rgb,
         "model": "retinexformer",
