@@ -1,22 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ComparisonView from '../components/ComparisonView';
 import ErrorMessage from '../components/ErrorMessage';
 import Header from '../components/Header';
 import ImagePreview from '../components/ImagePreview';
 import ImageUploader from '../components/ImageUploader';
 import LoadingState from '../components/LoadingState';
+import MethodSelector from '../components/MethodSelector';
 import ProfileSelector from '../components/ProfileSelector';
-import { enhanceImage, healthCheck } from '../services/api';
-import type { ImageProfile } from '../types/image';
+import { analyzeImage, enhanceImage, healthCheck } from '../services/api';
+import type { AnalysisMetrics, ImageProfile, RestorationMethod } from '../types/image';
+
+const DEFAULT_ANALYSIS: AnalysisMetrics = {};
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [profile, setProfile] = useState<ImageProfile>('natural');
+  const [method, setMethod] = useState<RestorationMethod>('hybrid');
+  const [loading, setLoading] = useState(false);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ImageProfile>('natural');
-  const [loading, setLoading] = useState(false);
+  const [fusionMap, setFusionMap] = useState<string | null>(null);
+  const [branchDisagreementMap, setBranchDisagreementMap] = useState<string | null>(null);
+  const [retryApplied, setRetryApplied] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | undefined>();
+  const [analysis, setAnalysis] = useState<AnalysisMetrics | undefined>(DEFAULT_ANALYSIS);
+  const [restoredAnalysis, setRestoredAnalysis] = useState<AnalysisMetrics | undefined>(undefined);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [timing, setTiming] = useState<Record<string, unknown>>({});
   const [selectedMethod, setSelectedMethod] = useState<string | undefined>();
@@ -38,9 +46,24 @@ export default function Home() {
     };
   }, [originalImage]);
 
+  const downloadFileName = useMemo(() => `lightmap_restored_${method}_${profile}.png`, [method, profile]);
+
   const handleFileSelected = (file: File) => {
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const isAllowedExt = extension && ['png', 'jpg', 'jpeg'].includes(extension);
+    const isAllowedMime = ['image/png', 'image/jpeg', 'image/jpg'].includes(file.type);
+    if (!isAllowedExt && !isAllowedMime) {
       setError('Unsupported file type. Please upload a PNG, JPG, or JPEG image.');
+      return;
+    }
+
+    if (file.size === 0) {
+      setError('Uploaded image is empty.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image exceeds the maximum supported size of 10.0 MB. Please upload a smaller image.');
       return;
     }
 
@@ -50,13 +73,18 @@ export default function Home() {
 
     setSelectedFile(file);
     setError(null);
-    setStatusMessage(`Loaded ${file.name}. Ready to enhance.`);
+    setStatusMessage(`Loaded ${file.name}. Ready to analyse and restore.`);
     setOriginalImage(URL.createObjectURL(file));
     setEnhancedImage(null);
+    setFusionMap(null);
+    setBranchDisagreementMap(null);
+    setRetryApplied(false);
     setWarnings([]);
-    setAnalysis(undefined);
+    setAnalysis(DEFAULT_ANALYSIS);
+    setRestoredAnalysis(undefined);
     setSelectedMethod(undefined);
     setProcessingStatus(undefined);
+    setTiming({});
   };
 
   const handleRemoveImage = () => {
@@ -66,33 +94,78 @@ export default function Home() {
     setSelectedFile(null);
     setOriginalImage(null);
     setEnhancedImage(null);
+    setFusionMap(null);
+    setBranchDisagreementMap(null);
+    setRetryApplied(false);
     setError(null);
     setWarnings([]);
-    setAnalysis(undefined);
+    setAnalysis(DEFAULT_ANALYSIS);
+    setRestoredAnalysis(undefined);
     setSelectedMethod(undefined);
     setProcessingStatus(undefined);
+    setTiming({});
     setStatusMessage('Image removed. Select an image to continue.');
+  };
+
+  const handleDownload = () => {
+    if (!enhancedImage) {
+      setError('There is no restored image available to download yet.');
+      return;
+    }
+
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = enhancedImage;
+      anchor.download = downloadFileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      setStatusMessage('Restored image download started.');
+    } catch {
+      setError('The restored image could not be downloaded.');
+    }
+  };
+
+  const handleAnalyze = async (file: File) => {
+    const result = await analyzeImage(file, profile);
+    setAnalysis((result as AnalysisMetrics) ?? DEFAULT_ANALYSIS);
+    setStatusMessage('Image analysis complete.');
+    return result;
   };
 
   const handleEnhance = async () => {
     if (!selectedFile) {
-      setError('Choose an image before running enhancement.');
+      setError('Choose an image before running restoration.');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setStatusMessage('Sending image to the restoration backend...');
+    setStatusMessage('Restoring image via selected engine...');
 
     try {
-      const result = await enhanceImage(selectedFile, profile);
-      setEnhancedImage(result.final_image ?? null);
-      setAnalysis((result.analysis ?? {}) as Record<string, unknown>);
+      const analysisResponse = await handleAnalyze(selectedFile);
+      const result = await enhanceImage(selectedFile, profile, method);
+
+      if (result.status === 'failed') {
+        setError(result.message || 'Restoration failed.');
+        setEnhancedImage(null);
+        setFusionMap(null);
+        setBranchDisagreementMap(null);
+      } else {
+        setEnhancedImage(result.final_image ?? null);
+        setFusionMap(result.fusion_map ?? null);
+        setBranchDisagreementMap(result.branch_disagreement_map ?? null);
+        setRetryApplied(Boolean(result.retry_applied));
+      }
+
+      setAnalysis((result.analysis ?? analysisResponse ?? DEFAULT_ANALYSIS) as AnalysisMetrics);
+      setRestoredAnalysis((result.restored_analysis ?? undefined) as AnalysisMetrics | undefined);
       setWarnings(result.warnings ?? []);
       setTiming((result.timing ?? result.timings ?? {}) as Record<string, unknown>);
       setSelectedMethod(result.selected_method ?? 'unknown');
       setProcessingStatus(result.processing_status ?? 'unknown');
-      setStatusMessage(result.message || 'Enhancement complete.');
+      setStatusMessage(result.message || 'Restoration complete.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'A backend error occurred while enhancing the image.');
     } finally {
@@ -114,17 +187,18 @@ export default function Home() {
             <ImageUploader onFileSelected={handleFileSelected} onRemove={handleRemoveImage} selectedFileName={selectedFile?.name} />
 
             <div style={{ marginTop: 18 }}>
+              <MethodSelector selectedMethod={method} onChange={setMethod} disabled={loading} />
               <ProfileSelector selectedProfile={profile} onChange={setProfile} />
             </div>
 
             <div className="action-row">
               <button type="button" className="primary-button" onClick={handleEnhance} disabled={!selectedFile || loading || backendHealthy === false}>
-                {loading ? 'Enhancing...' : 'Enhance image'}
+                {loading ? 'Restoring...' : 'Restore Image'}
               </button>
               {enhancedImage && (
-                <a className="secondary-button" href={enhancedImage} download="lightmap-enhanced.png">
+                <button type="button" className="secondary-button" onClick={handleDownload}>
                   Download result
-                </a>
+                </button>
               )}
             </div>
 
@@ -141,7 +215,7 @@ export default function Home() {
             </div>
             <div className="preview-stack">
               <ImagePreview imageSrc={originalImage ?? undefined} label="Original image" />
-              {enhancedImage && <ImagePreview imageSrc={enhancedImage} label="Enhanced result" />}
+              {enhancedImage && <ImagePreview imageSrc={enhancedImage} label="Restored result" />}
             </div>
           </div>
         </div>
@@ -150,11 +224,16 @@ export default function Home() {
           <ComparisonView
             originalImage={originalImage ?? undefined}
             enhancedImage={enhancedImage ?? undefined}
+            fusionMap={fusionMap}
+            branchDisagreementMap={branchDisagreementMap}
             analysis={analysis}
+            restoredAnalysis={restoredAnalysis}
             warnings={warnings}
             timing={timing}
             selectedMethod={selectedMethod}
             processingStatus={processingStatus}
+            profile={profile}
+            retryApplied={retryApplied}
           />
         </div>
       </div>

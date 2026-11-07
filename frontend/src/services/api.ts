@@ -1,4 +1,4 @@
-import type { EnhancementResponse, ImageProfile } from '../types/image';
+import type { EnhancementResponse, ImageProfile, RestorationMethod } from '../types/image';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -11,10 +11,15 @@ async function parseResponse(response: Response): Promise<any> {
   return data;
 }
 
-export async function enhanceImage(file: File, profile: ImageProfile): Promise<EnhancementResponse> {
+export async function enhanceImage(
+  file: File,
+  profile: ImageProfile,
+  method: RestorationMethod = 'hybrid'
+): Promise<EnhancementResponse> {
   const formData = new FormData();
   formData.append('image', file);
   formData.append('profile', profile);
+  formData.append('method', method);
 
   const response = await fetch(`${API_BASE_URL}/api/v1/enhance`, {
     method: 'POST',

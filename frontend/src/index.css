@@ -402,6 +402,97 @@ button {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
 }
 
+.comparison-slider-wrap {
+  margin-top: 8px;
+}
+
+.comparison-slider-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.72);
+  min-height: 360px;
+}
+
+.comparison-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
+}
+
+.comparison-image-base,
+.comparison-image-restored {
+  min-height: 360px;
+}
+
+.comparison-image-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.comparison-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(125, 211, 252, 0.9);
+  box-shadow: 0 0 0 1px rgba(14, 116, 144, 0.4);
+}
+
+.comparison-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 42px;
+  height: 42px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(125, 211, 252, 0.9);
+  background: rgba(8, 18, 31, 0.82);
+  color: #dbeafe;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  box-shadow: 0 8px 16px rgba(14, 116, 144, 0.25);
+}
+
+.comparison-label {
+  position: absolute;
+  top: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(8, 18, 31, 0.66);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #dbeafe;
+}
+
+.comparison-label-original {
+  left: 12px;
+}
+
+.comparison-label-restored {
+  right: 12px;
+}
+
+.comparison-slider {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+
 .comparison-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -26,26 +26,28 @@ async def analyze_image(
 async def enhance_image(
     image: Annotated[UploadFile, File(...)],
     profile: Annotated[str, Form()] = "natural",
+    method: Annotated[str, Form()] = "hybrid",
 ):
     if not image or not image.filename:
         raise HTTPException(status_code=400, detail="An image file is required for enhancement.")
 
     pipeline = PipelineService()
     image_array = await _read_image(image)
-    return pipeline.enhance_image(image_array, profile=profile)
+    return pipeline.enhance_image(image_array, profile=profile, method=method)
 
 
 @router.post("/compare")
 async def compare_images(
     image: Annotated[UploadFile, File(...)],
     profile: Annotated[str, Form()] = "natural",
+    method: Annotated[str, Form()] = "hybrid",
 ):
     if not image or not image.filename:
         raise HTTPException(status_code=400, detail="An image file is required for comparison.")
 
     pipeline = PipelineService()
     image_array = await _read_image(image)
-    return pipeline.compare_images(image_array, profile=profile)
+    return pipeline.compare_images(image_array, profile=profile, method=method)
 
 
 async def _read_image(file: UploadFile):

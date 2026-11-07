@@ -25,22 +25,40 @@ class EnhancementResponse(BaseModel):
     status: str
     message: str
     profile: str
+    method: str = "hybrid"
+    selected_method: str = "classical"
+    processing_status: str = "success"
     analysis: dict[str, Any] | None = None
+    restored_analysis: dict[str, Any] | None = None
     final_image: str | None = None
     classical_output: str | None = None
     deep_output: str | None = None
     hybrid_output: str | None = None
+    fusion_map: str | None = None
+    branch_disagreement_map: str | None = None
     quality_report: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
+    timings: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
+    retry_count: int = 0
+    retry_applied: bool = False
     demo_mode: bool = False
 
 
 class CompareResponse(BaseModel):
     message: str
     profile: str
+    method: str = "hybrid"
+    selected_method: str = "classical"
+    processing_status: str = "success"
     original_image: str | None = None
     final_image: str | None = None
+    classical_image: str | None = None
+    deep_image: str | None = None
+    hybrid_image: str | None = None
+    fusion_map: str | None = None
+    branch_disagreement_map: str | None = None
     analysis: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
     timing: dict[str, Any] | None = None
+    timings: dict[str, Any] | None = None

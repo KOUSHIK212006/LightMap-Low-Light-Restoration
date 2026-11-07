@@ -1,0 +1,77 @@
+{
+  "manifest_version": "1.0.0",
+  "project": "LightMap",
+  "storage_policy": "external_drive_only",
+  "git_tracking_allowed": false,
+  "supported_formats": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tif",
+    ".tiff",
+    ".dng"
+  ],
+  "datasets": [
+    {
+      "id": "lol_v1",
+      "name": "LOL-v1",
+      "official_title": "Low-Light Dataset (v1)",
+      "benchmark_subset": "eval15",
+      "expected_pairs": 15,
+      "color_space": "sRGB",
+      "file_type": "PNG",
+      "paths": {
+        "root": "datasets/LOLv1",
+        "low": "datasets/LOLv1/eval15/low",
+        "normal": "datasets/LOLv1/eval15/high"
+      },
+      "evaluation_type": "paired_full_reference"
+    },
+    {
+      "id": "lol_v2_real",
+      "name": "LOL-v2 Real",
+      "official_title": "LOL-v2 Real Captured Subset",
+      "benchmark_subset": "Test",
+      "expected_pairs": 100,
+      "color_space": "sRGB",
+      "file_type": "PNG",
+      "paths": {
+        "root": "datasets/LOLv2/Real_captured",
+        "low": "datasets/LOLv2/Real_captured/Test/Low",
+        "normal": "datasets/LOLv2/Real_captured/Test/Normal"
+      },
+      "evaluation_type": "paired_full_reference"
+    },
+    {
+      "id": "lol_v2_synthetic",
+      "name": "LOL-v2 Synthetic",
+      "official_title": "LOL-v2 Synthetic Subset",
+      "benchmark_subset": "Test",
+      "expected_pairs": 100,
+      "color_space": "sRGB",
+      "file_type": "PNG",
+      "paths": {
+        "root": "datasets/LOLv2/Synthetic",
+        "low": "datasets/LOLv2/Synthetic/Test/Low",
+        "normal": "datasets/LOLv2/Synthetic/Test/Normal"
+      },
+      "evaluation_type": "paired_full_reference"
+    },
+    {
+      "id": "mit_adobe_fivek",
+      "name": "MIT-Adobe FiveK",
+      "official_title": "MIT-Adobe FiveK Dataset (Expert C)",
+      "benchmark_subset": "Test",
+      "expected_pairs": 500,
+      "color_space": "sRGB",
+      "file_type": "PNG/TIFF",
+      "paths": {
+        "root": "datasets/MIT_FiveK",
+        "low": "datasets/MIT_FiveK/input",
+        "normal": "datasets/MIT_FiveK/expertC"
+      },
+      "evaluation_type": "paired_full_reference"
+    }
+  ]
+}
+

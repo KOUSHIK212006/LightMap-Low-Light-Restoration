@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+_repo_root = Path(__file__).resolve().parent.parent.parent
+_backend_dir = _repo_root / "backend"
+for _p in [str(_repo_root), str(_backend_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
