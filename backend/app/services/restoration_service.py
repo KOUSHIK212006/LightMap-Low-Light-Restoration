@@ -176,6 +176,52 @@ class RestorationService:
             return np.ascontiguousarray(arr)
         return None
 
+    def _colorize_fusion_map(self, map_data: np.ndarray | None) -> np.ndarray | None:
+        """
+        Colorize fusion weight map using INFERNO colormap.
+        Values close to 0 (classical highlight preservation) -> Dark Purple/Black
+        Values in mid-range (~0.5 balance) -> Magenta/Red
+        Values close to 255 (deep shadow lifting) -> Bright Gold/Yellow
+        """
+        if map_data is None:
+            return None
+        arr = np.asarray(map_data, dtype=np.uint8)
+        if arr.ndim == 3 and arr.shape[2] == 3:
+            return np.ascontiguousarray(arr)
+        if arr.ndim == 3 and arr.shape[2] == 1:
+            arr = arr[:, :, 0]
+        if arr.ndim == 2:
+            min_v, max_v = float(np.min(arr)), float(np.max(arr))
+            if max_v > min_v:
+                stretched = np.clip((arr.astype(np.float32) - min_v) / (max_v - min_v) * 255.0, 0, 255).astype(np.uint8)
+            else:
+                stretched = arr
+            colored = cv2.applyColorMap(stretched, cv2.COLORMAP_INFERNO)
+            return cv2.cvtColor(colored, cv2.COLOR_BGR2RGB)
+        return None
+
+    def _colorize_disagreement_map(self, map_data: np.ndarray | None) -> np.ndarray | None:
+        """
+        Colorize disagreement map using TURBO colormap.
+        Values close to 0 (agreement) -> Deep Navy Blue
+        Mid-range differences -> Teal / Green
+        High disagreement (edges, complex lighting) -> Yellow / Red
+        """
+        if map_data is None:
+            return None
+        arr = np.asarray(map_data, dtype=np.uint8)
+        if arr.ndim == 3 and arr.shape[2] == 3:
+            return np.ascontiguousarray(arr)
+        if arr.ndim == 3 and arr.shape[2] == 1:
+            arr = arr[:, :, 0]
+        if arr.ndim == 2:
+            p98 = float(np.percentile(arr, 98))
+            scale = max(p98, 15.0)
+            stretched = np.clip((arr.astype(np.float32) / scale) * 255.0, 0, 255).astype(np.uint8)
+            colored = cv2.applyColorMap(stretched, cv2.COLORMAP_TURBO)
+            return cv2.cvtColor(colored, cv2.COLOR_BGR2RGB)
+        return None
+
     def _call_fusion_branch(self, image, classical_output, deep_output, analysis):
         if self.fusion_fn is None:
             return None, None, None, "Adaptive fusion module is not available."
@@ -188,11 +234,11 @@ class RestorationService:
             fusion_map = None
             disagreement_map = None
             if isinstance(result, dict):
-                fusion_map = self._validate_map(result.get("fusion_map"))
+                fusion_map = self._colorize_fusion_map(result.get("fusion_map"))
                 raw_disagreement = result.get("branch_disagreement_map")
                 if raw_disagreement is None:
                     raw_disagreement = result.get("disagreement_map")
-                disagreement_map = self._validate_map(raw_disagreement)
+                disagreement_map = self._colorize_disagreement_map(raw_disagreement)
             return output, fusion_map, disagreement_map, None
         except Exception as exc:  # pragma: no cover - exercise defensive handling
             return None, None, None, f"Adaptive fusion failed: {exc}"
@@ -268,11 +314,9 @@ class RestorationService:
     def _compute_change_map(self, original: np.ndarray, restored: np.ndarray) -> np.ndarray:
         diff = np.abs(restored.astype(np.float32) - original.astype(np.float32))
         diff_luma = 0.299 * diff[:, :, 0] + 0.587 * diff[:, :, 1] + 0.114 * diff[:, :, 2]
-        max_val = float(np.max(diff_luma))
-        if max_val > 0:
-            norm = (diff_luma / max_val * 255.0).astype(np.uint8)
-        else:
-            norm = diff_luma.astype(np.uint8)
+        p99 = float(np.percentile(diff_luma, 99))
+        scale = max(p99, 15.0)
+        norm = np.clip((diff_luma / scale) * 255.0, 0, 255).astype(np.uint8)
         heatmap = cv2.applyColorMap(norm, cv2.COLORMAP_VIRIDIS)
         return cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 

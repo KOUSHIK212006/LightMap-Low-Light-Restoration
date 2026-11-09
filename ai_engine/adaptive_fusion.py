@@ -92,7 +92,9 @@ def adaptive_fusion(original, classical_output, deep_output, analysis=None):
 
     # 8. Maps for full-resolution explainability
     disagreement = np.mean(np.abs(c_f - d_f), axis=-1)
-    disagreement_uint8 = np.clip(disagreement * 255.0, 0, 255).astype(np.uint8)
+    p98 = float(np.percentile(disagreement, 98))
+    scale = max(p98, 0.08)
+    disagreement_uint8 = np.clip((disagreement / scale) * 255.0, 0, 255).astype(np.uint8)
     W_vis = np.clip(W_smooth * 255.0, 0, 255).astype(np.uint8)
 
     return {
