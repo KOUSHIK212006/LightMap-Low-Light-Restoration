@@ -24,18 +24,6 @@ interface PixelHoverInfo {
   deltaLuma: number;
 }
 
-interface RoiMetrics {
-  origBrightness: number;
-  restBrightness: number;
-  brightnessGain: number;
-  origContrast: number;
-  restContrast: number;
-  origNoise: number;
-  restNoise: number;
-  pctPixelsChanged: number;
-  maxChannelDelta: number;
-}
-
 export const RegionInspector: React.FC<RegionInspectorProps> = ({
   originalImage,
   restoredImage,
@@ -49,7 +37,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
 
   const [panelZoom, setPanelZoom] = useState<number>(4); // 1x to 12x
   const [hoverPixel, setHoverPixel] = useState<PixelHoverInfo | null>(null);
-  const [metrics, setMetrics] = useState<RoiMetrics | null>(null);
   const [naturalDims, setNaturalDims] = useState<{ width: number; height: number }>({ width: 600, height: 400 });
 
   // Load original and restored full-resolution images into memory bitmaps
@@ -176,30 +163,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
     }
 
     ctxD.putImageData(dataD, 0, 0);
-
-    const meanO = sumLumaO / totalPixels;
-    const meanR = sumLumaR / totalPixels;
-
-    let varO = 0;
-    let varR = 0;
-    for (let i = 0; i < totalPixels; i++) {
-      varO += Math.pow(lumaListO[i] - meanO, 2);
-      varR += Math.pow(lumaListR[i] - meanR, 2);
-    }
-    const stdO = Math.sqrt(varO / totalPixels);
-    const stdR = Math.sqrt(varR / totalPixels);
-
-    setMetrics({
-      origBrightness: Math.round(meanO * 10) / 10,
-      restBrightness: Math.round(meanR * 10) / 10,
-      brightnessGain: Math.round((meanR - meanO) * 10) / 10,
-      origContrast: Math.round(stdO * 10) / 10,
-      restContrast: Math.round(stdR * 10) / 10,
-      origNoise: Math.round(stdO * 0.3 * 10) / 10,
-      restNoise: Math.round(stdR * 0.15 * 10) / 10,
-      pctPixelsChanged: Math.round((changedCount / totalPixels) * 1000) / 10,
-      maxChannelDelta: Math.round(maxDelta),
-    });
   }, []);
 
   // Update crops when ROI changes
@@ -711,53 +674,6 @@ export const RegionInspector: React.FC<RegionInspectorProps> = ({
           </span>
         )}
       </div>
-
-      {/* Live ROI Statistics Bar */}
-      {metrics && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '10px'
-        }}>
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Mean Brightness</div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {metrics.origBrightness} → {metrics.restBrightness}
-              <span style={{ fontSize: '10px', color: 'var(--status-success)', marginLeft: '4px' }}>
-                (+{metrics.brightnessGain})
-              </span>
-            </div>
-          </div>
-
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Contrast (Std Dev)</div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {metrics.origContrast} → {metrics.restContrast}
-            </div>
-          </div>
-
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Noise Level</div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {metrics.origNoise} → {metrics.restNoise}
-            </div>
-          </div>
-
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Pixels Enhanced</div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {metrics.pctPixelsChanged}%
-            </div>
-          </div>
-
-          <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Max Pixel Change</div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-              +{metrics.maxChannelDelta} / 255
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
