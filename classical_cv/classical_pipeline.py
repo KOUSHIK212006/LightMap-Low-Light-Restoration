@@ -154,6 +154,78 @@ def _apply_colour_correction(image_rgb: np.ndarray, bias_strength: float = 0.04)
     return np.clip(corrected, 0, 255).astype(np.uint8)
 
 
+def _estimate_noise_variance(image_rgb: np.ndarray) -> float:
+    """Immerkaer (1996) fast noise variance estimation via Laplacian masking.
+    Returns estimated standard deviation of additive Gaussian noise sigma_n.
+    """
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY).astype(np.float64)
+    h, w = gray.shape
+    if h < 5 or w < 5:
+        return 0.0
+    kernel = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], dtype=np.float64)
+    filtered = cv2.filter2D(gray, -1, kernel, borderType=cv2.BORDER_REFLECT)
+    sigma = np.sum(np.abs(filtered)) * np.sqrt(0.5 * np.pi) / (6.0 * (w - 2) * (h - 2))
+    return float(sigma)
+
+
+def _apply_msrcr(
+    image_rgb: np.ndarray,
+    scales: tuple[int, ...] = (15, 80, 200),
+    alpha: float = 125.0,
+    beta: float = 46.0,
+) -> np.ndarray:
+    """Multi-Scale Retinex with Color Restoration (MSRCR, Jobson et al. 1997)."""
+    img_f = image_rgb.astype(np.float32) + 1.0
+    sum_channels = np.sum(img_f, axis=-1, keepdims=True)
+    c_rf = beta * (np.log(alpha * img_f) - np.log(sum_channels))
+
+    msr = np.zeros_like(img_f)
+    for s in scales:
+        blur = cv2.GaussianBlur(img_f, (0, 0), float(s))
+        msr += (np.log(img_f) - np.log(blur + 1e-4))
+    msr = msr / max(len(scales), 1)
+
+    msrcr = c_rf * msr
+    msrcr_norm = np.zeros_like(msrcr)
+    for i in range(3):
+        ch = msrcr[:, :, i]
+        p1, p99 = np.percentile(ch, 1), np.percentile(ch, 99)
+        if p99 > p1:
+            msrcr_norm[:, :, i] = np.clip((ch - p1) / (p99 - p1) * 255.0, 0, 255)
+        else:
+            msrcr_norm[:, :, i] = np.clip(ch, 0, 255)
+    return np.ascontiguousarray(msrcr_norm, dtype=np.uint8)
+
+
+def _apply_lime(image_rgb: np.ndarray, gamma: float = 0.60) -> np.ndarray:
+    """LIME: Low-light Image Enhancement via Illumination Map Estimation (Guo et al. 2017)."""
+    img_f = image_rgb.astype(np.float32) / 255.0
+    t_init = np.max(img_f, axis=-1)
+    t_refined = cv2.GaussianBlur(t_init, (15, 15), 0)
+    t_refined = np.maximum(t_refined, t_init * 0.7)
+    t_gamma = np.clip(np.power(t_refined + 1e-4, gamma), 0.08, 1.0)
+    enhanced = img_f / np.expand_dims(t_gamma, axis=-1)
+    return np.clip(enhanced * 255.0, 0, 255).astype(np.uint8)
+
+
+def _apply_unsharp_mask(image_rgb: np.ndarray, strength: float = 0.4, radius: int = 3) -> np.ndarray:
+    """Adaptive edge-preserving unsharp mask."""
+    blur = cv2.GaussianBlur(image_rgb, (radius * 2 + 1, radius * 2 + 1), 0)
+    high_freq = image_rgb.astype(np.float32) - blur.astype(np.float32)
+    sharpened = image_rgb.astype(np.float32) + strength * high_freq
+    return np.clip(sharpened, 0, 255).astype(np.uint8)
+
+
+def _apply_highlight_protection(original_rgb: np.ndarray, enhanced_rgb: np.ndarray, threshold: float = 210.0) -> np.ndarray:
+    """Preserve physical highlights and lamp filament textures from over-expansion."""
+    max_ch = np.max(original_rgb, axis=-1).astype(np.float32)
+    weight = np.clip((max_ch - threshold) / (255.0 - threshold + 1e-4), 0.0, 1.0)
+    weight_smooth = cv2.GaussianBlur(weight, (9, 9), 0)
+    weight_3c = np.expand_dims(weight_smooth, -1)
+    protected = (1.0 - weight_3c * 0.70) * enhanced_rgb.astype(np.float32) + (weight_3c * 0.70) * original_rgb.astype(np.float32)
+    return np.clip(protected, 0, 255).astype(np.uint8)
+
+
 def _condition_thresholds() -> dict[str, float]:
     return {
         "underexposed_threshold": 0.30,
@@ -184,6 +256,7 @@ def analyze_image(image):
     underexposed_ratio = float(np.mean(luminance_float < 60.0))
     overexposed_ratio = float(np.mean(luminance_float > 220.0))
     noise_score = float(cv2.Laplacian(luminance_float, cv2.CV_32F).var())
+    estimated_noise_sigma = float(_estimate_noise_variance(rgb))
     edge_strength = float(cv2.Laplacian(luminance_float, cv2.CV_32F).std())
     clipping_ratio = float(np.mean((rgb[:, :, 0] < 5) | (rgb[:, :, 1] < 5) | (rgb[:, :, 2] < 5) | (rgb[:, :, 0] > 250) | (rgb[:, :, 1] > 250) | (rgb[:, :, 2] > 250)))
 
@@ -200,7 +273,8 @@ def analyze_image(image):
         "is_underexposed": bool(underexposed_ratio >= thresholds["underexposed_threshold"]),
         "is_overexposed": bool(overexposed_ratio >= thresholds["overexposed_threshold"]),
         "is_low_contrast": bool(contrast_score < thresholds["low_contrast_threshold"] * 255.0),
-        "is_noisy": bool(noise_score >= thresholds["noise_threshold"]),
+        "is_noisy": bool(noise_score >= thresholds["noise_threshold"] or estimated_noise_sigma > 2.0),
+        "has_sensor_noise": bool(estimated_noise_sigma > 2.0),
         "has_strong_edges": bool(edge_strength >= thresholds["edge_threshold"]),
     }
 
@@ -211,6 +285,7 @@ def analyze_image(image):
         "underexposed_ratio": underexposed_ratio,
         "overexposed_ratio": overexposed_ratio,
         "noise_score": noise_score,
+        "estimated_noise_sigma": estimated_noise_sigma,
         "edge_strength": edge_strength,
         "colour_distribution": colour_distribution,
         "clipping_ratio": clipping_ratio,
@@ -325,21 +400,26 @@ def enhance_classical(image, analysis=None, profile="natural", return_stages=Fal
             "metrics": _calc_stage_metrics(current),
         })
 
-    if noise_score > 10.0 or normalized_profile == "natural":
-        denoise_strength = int(profile_config["denoise_strength"])
+    estimated_noise_sigma = float(analysis.get("estimated_noise_sigma", 0.0))
+    if estimated_noise_sigma > 1.8 or noise_score > 10.0 or normalized_profile == "natural":
+        if estimated_noise_sigma > 0:
+            denoise_strength = int(np.clip(round(estimated_noise_sigma * 3.5), 4, 14))
+        else:
+            denoise_strength = int(profile_config["denoise_strength"])
         if normalized_profile == "detail_preservation":
-            denoise_strength = max(5, denoise_strength - 4)
+            denoise_strength = max(4, denoise_strength - 4)
         current = _apply_bilateral_denoise(current, strength=denoise_strength)
         denoising_applied = True
     else:
+        denoise_strength = 0
         denoising_applied = False
 
     if return_stages:
         stages.append({
             "name": "Bilateral Denoising",
-            "description": "Edge-preserving spatial smoothing in photometric space",
+            "description": "Noise-adaptive spatial smoothing based on estimated sensor noise",
             "image": current.copy(),
-            "params": {"strength": int(profile_config["denoise_strength"]), "applied": denoising_applied},
+            "params": {"strength": denoise_strength, "applied": denoising_applied, "estimated_noise_sigma": round(estimated_noise_sigma, 2)},
             "metrics": _calc_stage_metrics(current),
         })
 
@@ -358,6 +438,32 @@ def enhance_classical(image, analysis=None, profile="natural", return_stages=Fal
             "metrics": _calc_stage_metrics(current),
         })
 
+    # Unsharp Masking for detail-preservation profile
+    if normalized_profile == "detail_preservation":
+        current = _apply_unsharp_mask(current, strength=0.35, radius=3)
+        unsharp_applied = True
+        if return_stages:
+            stages.append({
+                "name": "Unsharp Masking",
+                "description": "Adaptive high-frequency edge enhancement",
+                "image": current.copy(),
+                "params": {"strength": 0.35, "radius": 3, "applied": True},
+                "metrics": _calc_stage_metrics(current),
+            })
+    else:
+        unsharp_applied = False
+
+    # Highlight Protection: preserve light filaments and bright elements from clipping
+    current = _apply_highlight_protection(rgb, current, threshold=210.0)
+    if return_stages:
+        stages.append({
+            "name": "Highlight Protection",
+            "description": "Soft gradient blend to preserve original specular highlights",
+            "image": current.copy(),
+            "params": {"threshold": 210.0, "applied": True},
+            "metrics": _calc_stage_metrics(current),
+        })
+
     output = _validate_output_image(current, reference_shape)
     summary = {
         "profile": normalized_profile,
@@ -366,12 +472,15 @@ def enhance_classical(image, analysis=None, profile="natural", return_stages=Fal
         "retinex_applied": retinex_applied,
         "denoising_applied": denoising_applied,
         "colour_correction_applied": colour_correction_applied,
+        "unsharp_applied": unsharp_applied,
+        "highlight_protection_applied": True,
         "metrics": {
             "mean_brightness": mean_brightness,
             "contrast_score": contrast_score,
             "underexposed_ratio": underexposed_ratio,
             "overexposed_ratio": overexposed_ratio,
             "noise_score": noise_score,
+            "estimated_noise_sigma": estimated_noise_sigma,
             "edge_strength": edge_strength,
             "clipping_ratio": clipping_ratio,
         },
@@ -390,7 +499,7 @@ def enhance_classical(image, analysis=None, profile="natural", return_stages=Fal
             "gamma": float(gamma_value),
             "clahe_clip_limit": float(profile_config["clahe_clip"]),
             "tile_grid": list(profile_config["tile_grid"]),
-            "denoise_strength": int(profile_config["denoise_strength"]),
+            "denoise_strength": int(denoise_strength),
             "profile": normalized_profile,
         },
         "processing_summary": summary,
@@ -402,4 +511,30 @@ def enhance_classical(image, analysis=None, profile="natural", return_stages=Fal
     return result_payload
 
 
-__all__ = ["analyze_image", "enhance_classical"]
+def enhance_lime(image: np.ndarray, gamma: float = 0.60) -> dict[str, Any]:
+    """Enhance using LIME (Illumination Map Estimation)."""
+    rgb = _validate_rgb_image(image)
+    out = _apply_lime(rgb, gamma=gamma)
+    return {"image": out, "method": "LIME"}
+
+
+def enhance_msrcr(image: np.ndarray, scales=(15, 80, 200), alpha: float = 125.0, beta: float = 46.0) -> dict[str, Any]:
+    """Enhance using MSRCR (Multi-Scale Retinex with Color Restoration)."""
+    rgb = _validate_rgb_image(image)
+    out = _apply_msrcr(rgb, scales=scales, alpha=alpha, beta=beta)
+    return {"image": out, "method": "MSRCR"}
+
+
+def estimate_noise_variance(image: np.ndarray) -> float:
+    """Public export for Immerkaer noise variance estimation."""
+    rgb = _validate_rgb_image(image)
+    return _estimate_noise_variance(rgb)
+
+
+__all__ = [
+    "analyze_image",
+    "enhance_classical",
+    "enhance_lime",
+    "enhance_msrcr",
+    "estimate_noise_variance",
+]

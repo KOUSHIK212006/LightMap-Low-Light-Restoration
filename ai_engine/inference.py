@@ -32,6 +32,16 @@ try:
 except (ImportError, ModuleNotFoundError):
     RetinexFormer = None
 
+try:
+    from ai_engine.zerodce import enhance_zerodce
+except ImportError:
+    enhance_zerodce = None
+
+try:
+    from ai_engine.snr_aware import enhance_snr_aware
+except ImportError:
+    enhance_snr_aware = None
+
 TORCH_AVAILABLE = torch is not None
 
 _model = None
@@ -131,7 +141,25 @@ def enhance_deep(image: np.ndarray, model_name="retinexformer", profile="natural
     Input: RGB uint8 NumPy array (H, W, 3)
     Output: Dictionary with 'image', 'model', 'inference_time_ms', 'device'
     """
-    if model_name != "retinexformer":
+    normalized_model = str(model_name).lower().strip()
+
+    # Fast-latency branch: Zero-DCE++
+    if normalized_model in ("zerodce", "zerodce++", "zero-dce", "sci"):
+        t_start = time.time()
+        dev_str = "mps" if (torch and torch.backends.mps.is_available()) else ("cuda" if (torch and torch.cuda.is_available()) else "cpu")
+        if enhance_zerodce is not None:
+            out_img = enhance_zerodce(image, device=dev_str)
+        else:
+            out_img = image
+        inf_ms = round((time.time() - t_start) * 1000, 2)
+        return {
+            "image": out_img,
+            "model": "ZeroDCE++",
+            "inference_time_ms": inf_ms,
+            "device": dev_str,
+        }
+
+    if normalized_model not in ("retinexformer", "snr_aware", "snr", "snr_net"):
         return {"image": image, "model": "placeholder", "inference_time_ms": 0.0}
 
     model = _load_model()
@@ -202,10 +230,18 @@ def enhance_deep(image: np.ndarray, model_name="retinexformer", profile="natural
     total_time_ms = (time.time() - t_start) * 1000
     forward_time_ms = (t_forward - t_prep) * 1000
 
+    snr_map = None
+    if normalized_model in ("snr_aware", "snr", "snr_net") and enhance_snr_aware is not None:
+        output_rgb, snr_map = enhance_snr_aware(image, output_rgb)
+        model_label = "SNR-Aware Retinexformer"
+    else:
+        model_label = "retinexformer"
+
     return {
         "image": output_rgb,
-        "model": "retinexformer",
+        "model": model_label,
         "device": str(_device),
         "inference_time_ms": round(total_time_ms, 1),
         "forward_ms": round(forward_time_ms, 1),
+        "snr_map": snr_map,
     }
