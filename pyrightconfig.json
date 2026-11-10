@@ -1,0 +1,15 @@
+{
+  "include": [
+    "ai_engine",
+    "backend",
+    "classical_cv",
+    "scripts"
+  ],
+  "extraPaths": [
+    "../Retinexformer",
+    "backend"
+  ],
+  "venvPath": ".",
+  "venv": ".venv"
+}
+
